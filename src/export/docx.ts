@@ -26,6 +26,8 @@ export interface ExportOptions {
 	headingScheme?: HeadingScheme;
 	/** Which Markdown heading is AGLC4 level one. */
 	aglcTopLevel?: TopLevel;
+	/** Keep each footnote whole on one page (Word: "Keep lines together" on footnote text). */
+	keepFootnotesTogether?: boolean;
 }
 
 export const DEFAULT_EXPORT: ExportOptions = {
@@ -37,6 +39,7 @@ export const DEFAULT_EXPORT: ExportOptions = {
 	pageNumbers: true,
 	headingScheme: 'plain',
 	aglcTopLevel: 'auto',
+	keepFootnotesTogether: true,
 };
 
 interface Style {
@@ -141,13 +144,24 @@ class DocxBuilder {
 
 	private footnote(blocks: Block[]): FootnoteReferenceRun {
 		const id = this.nextId++;
-		this.footnotes[id] = { children: this.paragraphs(blocks, true).filter((p): p is Paragraph => p instanceof Paragraph) };
+		// To keep a footnote of several paragraphs together, each but the last is kept with the next. The
+		// last is not, or every footnote would be chained to the one after it.
+		const keep = this.opts.keepFootnotesTogether === true;
+		const head = keep ? blocks.slice(0, -1) : blocks;
+		this.keepNext = keep;
+		const children = this.paragraphs(head, true);
+		this.keepNext = false;
+		if (keep && blocks.length > 0) children.push(...this.paragraphs(blocks.slice(-1), true));
+		this.footnotes[id] = { children: children.filter((p): p is Paragraph => p instanceof Paragraph) };
 		return new FootnoteReferenceRun(id);
 	}
 
+	/** Set while building footnote paragraphs that must stay with the next one. */
+	private keepNext = false;
+
 	/** A paragraph with widow and orphan control, which Word leaves off unless asked. */
 	private para(opts: IParagraphOptions): Paragraph {
-		return new Paragraph({ widowControl: true, ...opts });
+		return new Paragraph({ widowControl: true, ...(this.keepNext ? { keepNext: true } : {}), ...opts });
 	}
 
 	paragraphs(blocks: Block[], inFootnote = false, indent = 0): (Paragraph | Table)[] {
@@ -248,7 +262,10 @@ class DocxBuilder {
 					},
 					footnoteText: {
 						run: { font: this.opts.font, size: pt(st.footnote.size) },
-						paragraph: { spacing: { line: Math.round(240 * st.footnote.multiple), after: twips(st.footnote.after) } },
+						paragraph: {
+							spacing: { line: Math.round(240 * st.footnote.multiple), after: twips(st.footnote.after) },
+							keepLines: st.footnote.keepLines || undefined,
+						},
 					},
 					heading1: h1, heading2: h2, heading3: h3, heading4: h4, heading5: h5, heading6: h6,
 					title: style(st.title),

@@ -25,6 +25,7 @@ export interface Aglc4Settings {
 	aglcTopLevel: TopLevel;
 	footnoteEditing: 'pane' | 'note';
 	returnOnFinish: boolean;
+	keepFootnotesTogether: boolean;
 }
 
 export const DEFAULT_SETTINGS: Aglc4Settings = {
@@ -50,6 +51,7 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	aglcTopLevel: 'auto',
 	footnoteEditing: 'pane',
 	returnOnFinish: true,
+	keepFootnotesTogether: true,
 };
 
 type Key = keyof Aglc4Settings;
@@ -113,6 +115,7 @@ const GROUPS: Group[] = [
 			{ name: 'Font', control: { type: 'text', key: 'font' } },
 			{ name: 'Body text size', desc: 'In points.', control: { type: 'slider', key: 'fontSize', min: 9, max: 16, step: 0.5 } },
 			{ name: 'Footnote text size', desc: 'In points.', control: { type: 'slider', key: 'footnoteSize', min: 7, max: 14, step: 0.5 } },
+			{ name: 'Keep footnotes on one page', desc: 'Keep each footnote whole at the bottom of one page: when a long footnote (eg one with a long web address) does not fit, the line citing it moves to the next page with it. A footnote longer than a page is still split. Turn off to let footnotes continue on the next page, as Word does by default.', control: { type: 'toggle', key: 'keepFootnotesTogether' } },
 			{ name: 'Line spacing', control: { type: 'dropdown', key: 'lineSpacing', options: { '1': 'Single', '1.5': '1.5 lines', '2': 'Double' } } },
 			{ name: 'Typographic quotation marks', desc: 'Export straight quotes as ‘curly’ quotes, as in a published AGLC4 document.', control: { type: 'toggle', key: 'smartQuotes' } },
 			{ name: 'Page numbers', desc: 'Number the pages of Word exports in the footer.', control: { type: 'toggle', key: 'pageNumbers' } },

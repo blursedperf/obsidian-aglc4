@@ -256,7 +256,12 @@ export async function layoutNote(markdown: string, opts: ExportOptions, host: HT
 	}));
 	for (const it of [...b.blocks, ...b.notes]) it.el.detach();
 
-	const pages = paginate(pblocks, pnotes, { contentHeight: CONTENT_HEIGHT, separator: b.st.separator, widowControl: true });
+	const pages = paginate(pblocks, pnotes, {
+		contentHeight: CONTENT_HEIGHT,
+		separator: b.st.separator,
+		widowControl: true,
+		keepNotesTogether: opts.keepFootnotesTogether === true,
+	});
 	return { pages, blocks: b.blocks, notes: b.notes, styles: b.st, options: opts };
 }
 

@@ -60,6 +60,22 @@ describe('pagination', () => {
 		expect(pages[1]!.body).toEqual([{ block: 0, from: 3, to: 8, y: 0 }]);
 	});
 
+	it('keeps a footnote whole by moving its reference to the next page', () => {
+		// Line 5 cites a 14-line footnote (70, plus 10 for the separator). Under 6 lines (60) it would need
+		// 140: rather than split it, line 5 and the footnote go to the next page.
+		const pages = paginate([para(10, { refs: [{ line: 5, note: 0 }] })], [note(14)], { ...geo, keepNotesTogether: true });
+		expect(pages[0]!.notes).toEqual([]);
+		expect(pages[0]!.body).toEqual([{ block: 0, from: 0, to: 5, y: 0 }]);
+		expect(pages[1]!.notes).toEqual([{ note: 0, from: 0, to: 14, y: 0 }]);
+		expect(pages[1]!.continued).toBe(false);
+	});
+
+	it('still splits a footnote too long for any page', () => {
+		const pages = paginate([para(4, { refs: [{ line: 1, note: 0 }] })], [note(30)], { ...geo, keepNotesTogether: true });
+		expect(pages[0]!.notes[0]!.to).toBeLessThan(30);
+		expect(pages[1]!.continued).toBe(true);
+	});
+
 	it('moves the reference when not even one footnote line fits', () => {
 		// Line 8 cites a footnote; 9 lines (90) + separator (10) leaves no room for a footnote line.
 		const pages = paginate([para(12, { refs: [{ line: 8, note: 0 }] })], [note(1)], geo);

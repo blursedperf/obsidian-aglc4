@@ -488,6 +488,7 @@ export default class Aglc4Plugin extends Plugin {
 			title: s.useTitle ? file.basename : undefined,
 			headingScheme: s.headingScheme,
 			aglcTopLevel: s.aglcTopLevel,
+			keepFootnotesTogether: s.keepFootnotesTogether,
 		};
 	}
 

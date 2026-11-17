@@ -6,7 +6,8 @@
  *   footnotes it cites (Word allows no overlap, unlike LibreOffice);
  * - the space between paragraphs is the larger of the first's space after and the second's space before;
  * - a footnote must start on the page of its reference; if it does not fit, as many of its lines as fit
- *   are placed and the rest continue at the top of the next page's footnotes, ahead of new footnotes;
+ *   are placed and the rest continue at the top of the next page's footnotes, ahead of new footnotes
+ *   (unless footnotes are kept together, when the citing line moves to the next page instead);
  * - widow and orphan control: a paragraph split across pages leaves at least two lines on each side;
  * - headings are kept with the next paragraph and not split.
  *
@@ -37,6 +38,11 @@ export interface Geometry {
 	/** Height of the separator above the footnotes (also used for the continuation separator). */
 	separator: number;
 	widowControl?: boolean;
+	/**
+	 * Keep each footnote whole on one page: when it does not fit, the line citing it moves to the next
+	 * page with it. A footnote too long for any page is still split.
+	 */
+	keepNotesTogether?: boolean;
 }
 
 export interface BodySlice {
@@ -89,6 +95,9 @@ export function paginate(blocks: PBlock[], notes: PNote[], geo: Geometry): Page[
 	const H = geo.contentHeight;
 	const sep = geo.separator;
 	const widow = geo.widowControl !== false;
+	const keepNotes = geo.keepNotesTogether === true;
+	/** A footnote that cannot fit on a page even with only its citing line above it. */
+	const tooLong = (n: number, lineHeight: number) => notes[n]!.lines * notes[n]!.lineHeight > H - sep - lineHeight + EPS;
 	const pages: Page[] = [];
 
 	const fresh = (carry: State['carry']): State => ({ y: 0, lastAfter: null, notesH: 0, body: [], notes: [], carry, continued: false, full: false });
@@ -157,7 +166,8 @@ export function paginate(blocks: PBlock[], notes: PNote[], geo: Geometry): Page[
 		}
 		// Split the footnotes: everything that fits, then as much of the next one as fits.
 		const firstLine = cited.length > 0 ? notes[cited[0]!]!.lineHeight : 0;
-		if (cited.length > 0 && s.carry.length === 0 && fits(s, cost, firstLine)) {
+		const maySplit = !keepNotes || cited.some((n) => tooLong(n, b.lineHeight));
+		if (maySplit && cited.length > 0 && s.carry.length === 0 && fits(s, cost, firstLine)) {
 			commit();
 			for (let i = 0; i < cited.length; i++) {
 				const n = notes[cited[i]!]!;

@@ -12,7 +12,7 @@
  * development tool: it is not part of the plugin and not run by `npm test`.
  */
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -74,7 +74,10 @@ async function main() {
 		for (const file of readdirSync(DIR).filter((f) => f.endsWith('.word.pdf'))) {
 			const name = file.replace(/\.word\.pdf$/, '');
 			const markdown = readFileSync(join(DIR, `${name}.md`), 'utf8');
-			const res = await call('Runtime.evaluate', { expression: `runLayout(${JSON.stringify(markdown)})`, awaitPromise: true, returnByValue: true });
+			// Options the Word export used for this case, from <name>.options.json (default: plugin defaults).
+			const optionsFile = join(DIR, `${name}.options.json`);
+			const options = existsSync(optionsFile) ? readFileSync(optionsFile, 'utf8') : '{}';
+			const res = await call('Runtime.evaluate', { expression: `runLayout(${JSON.stringify(markdown)}, ${options})`, awaitPromise: true, returnByValue: true });
 			if (res.result.exceptionDetails) throw new Error(res.result.exceptionDetails.exception?.description ?? 'layout failed');
 			const preview = res.result.result.value;
 			const word = wordPages(join(DIR, file));

@@ -80,6 +80,8 @@ export interface LayoutOptions {
 	footnoteSize: number;
 	lineSpacing: number;
 	headingScheme?: HeadingScheme;
+	/** Keep each footnote whole on one page rather than continuing it on the next. */
+	keepFootnotesTogether?: boolean;
 }
 
 export interface Styles {
@@ -102,7 +104,7 @@ export function styles(o: LayoutOptions): Styles {
 	});
 	return {
 		body: { size: o.fontSize, multiple: o.lineSpacing, before: 0, after: 6 },
-		footnote: { size: o.footnoteSize, multiple: 1, before: 0, after: 0 },
+		footnote: { size: o.footnoteSize, multiple: 1, before: 0, after: 0, keepLines: o.keepFootnotesTogether === true },
 		headings: o.headingScheme === 'aglc' ? [
 			// AGLC4, at body size:
 			// I    numeral upright; heading in large and small capitals; centred

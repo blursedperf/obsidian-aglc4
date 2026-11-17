@@ -54,7 +54,10 @@ describe('Word export', () => {
 		expect(footnotes).toContain('‘It’s a Title’');
 		expect(footnotes).toContain('&lt;');
 		expect(document).not.toContain('[^1]');
-		// Footnotes use the 10pt single-spaced footnote style, not the body style.
+		// Footnotes are kept whole on one page by default.
+		const styles = await zip.file('word/styles.xml')!.async('string');
+		expect(/<w:style [^>]*w:styleId="FootnoteText"[\s\S]*?<\/w:style>/.exec(styles)![0]).toContain('<w:keepLines/>');
+				// Footnotes use the 10pt single-spaced footnote style, not the body style.
 		expect((footnotes.match(/<w:pStyle w:val="FootnoteText"\/>/g) ?? []).length).toBe(2);
 	});
 });
