@@ -83,26 +83,38 @@ const DATE = `\\d{1,2}\\s${MONTH}\\s\\d{4}`;
 const ITALIC = '(?:\\*[^*\\n]+\\*|_[^_\\n]+_)';
 const OPEN_Q = '[\'‘]';
 const CLOSE_Q = '[\'’]';
-const PIN_PAGE = '\\d+(?:[–-]\\d+)?(?:\\s\\[\\d+\\](?:[–-]\\[\\d+\\])?)?(?:\\sn\\s\\d+)?';
-const PIN_PARA = '\\[\\d+\\](?:[–-]\\[\\d+\\])?(?:\\sn\\s\\d+)?';
+/** A footnote pinpoint within a page or paragraph: "n 6", "nn 7–8". */
+const PIN_NOTE = '(?:\\snn?\\s\\d+(?:[–-]\\d+)?)?';
+/** A page (with thousands separators, as in CCH reports: "91,970"), optionally with paragraphs: "6 [23]". */
+const PIN_PAGE = `(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:[–-]\\d+)?(?:\\s\\[[\\d.]+\\](?:[–-]\\[[\\d.]+\\])?)?${PIN_NOTE}`;
+const PIN_PARA = `\\[[\\d.]+\\](?:[–-]\\[[\\d.]+\\])?${PIN_NOTE}`;
 const PIN = `(?:${PIN_PARA}|${PIN_PAGE})`;
-const BOOK_PIN = `(?:\\[[\\d.]+\\](?:[–-]\\[[\\d.]+\\])?(?:\\sn\\s\\d+)?|\\d+(?:[–-]\\d+)?(?:\\s\\[[\\d.]+\\](?:[–-]\\[[\\d.]+\\])?)?(?:\\sn\\s\\d+)?)`;
+/** Book pinpoints (r 6.4–6.5): pages and paragraphs, or chapters and parts ("ch 5", "pt 1 ch 2"), volumes and books ("vol 16, 159"). */
+const BOOK_PIN = `(?:(?:vol|bk)\\s\\d+(?:,\\s(?:${PIN_PARA}|${PIN_PAGE}))?|(?:chs?|pts?)\\s[\\dIVXLC]+(?:[–-][\\dIVXLC]+)?(?:\\s(?:chs?|pts?)\\s[\\dIVXLC]+)*|${PIN_PARA}|${PIN_PAGE})`;
 const LEG_DESIGNATOR = `(?:${LEG_PINPOINTS.map(escapeRe).join('|')})`;
-const LEG_UNIT = '(?:\\d+(?:\\.\\d+)*[A-Za-z]*|[IVXLC]+[A-Z]?|[A-Z]\\d*)(?:\\([0-9A-Za-z]+\\))*';
+const LEG_UNIT = '(?:(?:\\d+(?:[.-]\\d+)*[A-Za-z]*|[IVXLC]+[A-Z]?|[A-Z]\\d*)(?:\\([0-9A-Za-z]+\\))*|(?:\\([0-9A-Za-z]+\\))+)';
 const LEG_NUM = `${LEG_UNIT}(?:[–-]${LEG_UNIT})?`;
 const LEG_ONE = `${LEG_DESIGNATOR}\\s${LEG_NUM}(?:(?:,\\s|\\sand\\s|\\sor\\s)${LEG_NUM})*`;
 /** One or more designators, eg "s 5(1)", "ss 180–4", "pt 2 div 3", "sch 1 item 3". */
 const LEG_PIN = `${LEG_ONE}(?:\\s${LEG_ONE})*`;
 const JUR = `(?:${JURISDICTIONS.map(escapeRe).join('|')})`;
-const JUDGE_TITLES = '(?:CJ in Eq|CJ|ACJ|JJA|JJ|JA|AJA|AJ|DCJ|LJJ|LJ|MR|LC|JSC|PSC|DPSC|J|P|SM|DP|M|C)';
+/** Judicial offices (AGLC4 r 2.4.1 table, and UK offices). */
+const JUDGE_TITLES = '(?:CJ in Eq|CJ at CL|CJ Comm D|CJA|CJ|ACJ|AJJA|AJA|AJJ|AJ|AP|AsJ|AUJ|DCJ|FM|JJA|JJ|JA|JR|SJA|SJJ|SJ|SPJ|V-P|LJJ|LJ|MR|LC|JSC|PSC|DPSC|J|P|SM|DP|M|C)';
+/** Titles written before a judicial officer's name (r 2.4.1), and peerage titles. */
+const JUDGE_PREFIX = '(?:Commissioner|Judge|Magistrate|Master|Lord|Lady|Baroness|Baron|Viscount)';
 /**
- * The judicial officers a pinpoint refers to: "(Brennan J)", "(Gummow and Hayne JJ)", "(Lord Atkin)",
- * "(Lord Denning MR)", "(Kirby J, dissenting)".
+ * The judicial officers a pinpoint refers to (r 2.4): "(Brennan J)", "(Gummow and Hayne JJ)", "(Lord Atkin)",
+ * "(Commissioner Buss)", "(Kirby J, dissenting)", "(Kitto J, Webb J agreeing at 591)",
+ * "(Hudson AJ for the Court)": any parenthetical naming a judicial officer.
  */
-const JUDGES = `\\s\\((?:[^()\\n]*?\\b${JUDGE_TITLES}|(?:[^()\\n]*?\\b)?(?:Lord|Lady|Baroness|Baron|Viscount)\\s[A-Z][^()\\n]*?)(?:,?\\s(?:dissenting|agreeing|concurring|in dissent))?\\)`;
+const JUDGES = `\\s\\((?=[^()\\n]*(?:\\b${JUDGE_TITLES}\\b|\\b${JUDGE_PREFIX}\\s[A-Z]))(?:[^()\\n]|\\[[^\\]\\n]*\\])*\\)`;
+/** Parenthetical notes after a pinpoint (r 1.5.7, 2.2.6, 2.4.4): "(emphasis added)", "(Court of Appeal)", "(during argument)". */
+const NOTES = '\\s\\((?:emphasis added|emphasis in original|citations omitted|footnotes omitted|citations and footnotes omitted|during argument|(?=[^()\\n]*\\b(?:Court|Council|Tribunal|Commission)\\b)[A-Z][^()\\n]*)\\)';
 /** A personal or organisational name: capitalised words, with the particles names and bodies use. */
 const NAME = '\\p{Lu}[\\p{L}\\p{N}.\'’&-]*(?:\\s(?:\\p{Lu}[\\p{L}\\p{N}.\'’&-]*|of|the|for|on|and|in|de|van|von|der|den|di|da|le|la|du|bin|binti|et al\\.?|&))*';
-const AUTHORS = `${NAME}(?:,\\s${NAME})*(?:\\s\\((?:ed|eds)\\))?`;
+/** Authors (r 4.1): names separated by commas, a body's jurisdiction ("Department for Women (NSW)"), editors. */
+const AUTHOR_NAME = `${NAME}(?:\\s\\((?:Cth|NSW|Vic|Qld|WA|SA|Tas|ACT|NT)\\))?`;
+const AUTHORS = `${AUTHOR_NAME}(?:,\\s${AUTHOR_NAME})*(?:\\s\\((?:ed|eds)\\))?`;
 const SHORT_TITLE = `\\s\\((?:\\*${OPEN_Q}[^'’*\\n]+${CLOSE_Q}\\*|${OPEN_Q}\\*[^*\\n]+\\*${CLOSE_Q}|${OPEN_Q}[^'’\\n]+${CLOSE_Q})\\)`;
 
 function isItalic(s: string): boolean {
@@ -133,10 +145,41 @@ const caseName: ElementSpec = {
 	hint: 'Party v Party, in italics (AGLC4 r 2.1)',
 	insert: '*${Party v Party}*',
 	re: S(`(?:${ITALIC}|(?:Re\\s|[A-Z][^;*_\\n]*?\\sv\\s)[^;*_\\n]*?(?=\\s[[(]\\d{4}[\\])]))`),
+	// The name is omitted when it appears in the sentence (r 2.1.15): "(2007) 233 CLR 307".
+	optional: true,
 	check: (m) => {
 		const out: Issue[] = [];
 		if (!isItalic(m.text)) {
 			out.push(issue(m, 'case-italics', 'error', 'Case names are italicised.', 'r 2.1', { from: m.from, to: m.to, insert: `*${m.text.trim()}*`, label: 'Italicise case name' }));
+		}
+		const name = stripItalic(m.text);
+		const nameAt = m.from + m.text.indexOf(name);
+		// Find-and-replace style rules for parties' names (r 2.1.1–2.1.8).
+		const partyRules: [RegExp, (m: RegExpExecArray) => string, string, string, Issue['severity']][] = [
+			[/\((No|Nos) (\d+(?: and \d+)?)\)/, (x) => `[${x[1]} ${x[2]}]`, 'case-number', 'The number of a decision goes in square brackets: "[No 2]".', 'error'],
+			[/^(Regina|Rex)(?=\sv\s)|^(The Queen|The King)(?=\sv\s)/, () => 'R', 'case-crown', 'When the Crown is the first party, write "R".', 'error'],
+			[/\s(?:&|and) (?:Anor|Ors|Another|Others)\b/, () => '', 'case-others', 'Cite only the first plaintiff and first defendant: omit "& Anor" and "& Ors".', 'error'],
+			[/\bProprietary Limited\b|\bPty\.? Limited\b|\bProprietary Ltd\b/, () => 'Pty Ltd', 'case-company', 'Abbreviate corporate status: "Pty Ltd".', 'error'],
+			[/\bLimited\b/, () => 'Ltd', 'case-company', 'Abbreviate "Limited" to "Ltd".', 'error'],
+			[/\bIncorporated\b/, () => 'Inc', 'case-company', 'Abbreviate "Incorporated" to "Inc".', 'error'],
+			[/\bCompany(?=\s(?:Pty|Ltd|Inc)\b|\sv\s|$)/, () => 'Co', 'case-company', 'Abbreviate "Company" to "Co".', 'error'],
+			[/\(in (?:liquidation|provisional liquidation)\)/, (x) => (x[0].includes('provisional') ? '(in prov liq)' : '(in liq)'), 'case-company', 'Abbreviate "(in liquidation)" to "(in liq)".', 'error'],
+			[/\b(?:The )?Commonwealth of Australia\b/, () => 'Commonwealth', 'case-state', 'Write the Commonwealth as "Commonwealth".', 'error'],
+			[/\b(?:The )?State of (?=New South Wales|Victoria|Queensland|Western Australia|South Australia|Tasmania)/, () => '', 'case-state', 'Write only the name of the State: "New South Wales", not "State of New South Wales".', 'error'],
+			[/\bAttorney-General\b/, () => 'A-G', 'case-officer', 'In citations an Attorney-General is "A-G", followed by the jurisdiction: "A-G (Cth)".', 'error'],
+			[/\bDirector of Public Prosecutions\b/, () => 'DPP', 'case-officer', 'In citations a Director of Public Prosecutions is "DPP", followed by the jurisdiction: "DPP (Vic)".', 'error'],
+			[/^In re\b|^In the matter of\b/, () => 'Re', 'case-re', 'Shorten "In re" and "In the matter of" to "Re".', 'error'],
+			[/\bex parte\b|\bEx Parte\b|\bEx p\b/, () => 'Ex parte', 'case-ex-parte', 'Write "Ex parte" (not abbreviated; "parte" in lower case).', 'error'],
+		];
+		const reported = new Set<string>();
+		for (const [re, replace, rule, message, severity] of partyRules) {
+			// One issue per rule: "Proprietary Limited" is one fix, not "Pty Ltd" and "Ltd" overlapping.
+			if (reported.has(rule)) continue;
+			const x = re.exec(name);
+			if (!x) continue;
+			reported.add(rule);
+			const at = nameAt + x.index;
+			out.push(issue(m, rule, severity, message, 'r 2.1', { from: at, to: at + x[0].length, insert: replace(x) }, at, at + x[0].length));
 		}
 		const vs = /\s(vs\.?|v\.|versus)\s/.exec(m.text);
 		if (vs) {
@@ -150,9 +193,20 @@ const caseName: ElementSpec = {
 const pinpoints: ElementSpec = {
 	id: 'pinpoint',
 	label: 'Pinpoint',
-	hint: 'Page (", 23") or paragraph (", [23]")',
+	hint: 'Page (", 23"), paragraph (", [23]") or both (", 6 [23]"), each optionally followed by its judge',
 	insert: ', ${pinpoint}',
-	re: S(`,\\s${PIN}`),
+	// Pinpoints can alternate with judges: "509 [43], [45] (French J), 529–30 [137] (Stone J)" (r 2.4).
+	re: S(`,\\s${PIN}(?:${JUDGES})?`),
+	optional: true,
+	repeat: true,
+};
+
+const notes: ElementSpec = {
+	id: 'note',
+	label: 'Note',
+	hint: '(emphasis added), (citations omitted), the court, (during argument)',
+	insert: ' (${emphasis added})',
+	re: S(NOTES),
 	optional: true,
 	repeat: true,
 };
@@ -169,10 +223,17 @@ const judges: ElementSpec = {
 const shortTitle = (id = 'short'): ElementSpec => ({
 	id,
 	label: 'Short title',
-	hint: 'Only if the source is cited again: (\'*Short*\') (AGLC4 r 1.4.1)',
+	hint: 'Only if the source is cited again: (\'*Short*\') (AGLC4 r 1.4.4)',
 	insert: ' (\'*${Short Title}*\')',
 	re: S(SHORT_TITLE),
 	optional: true,
+	check: (m) => {
+		// The inverted commas are not italic: ('*Mabo*'), not (*'Mabo'*).
+		const x = /^\s\(\*(['‘])([^'’*]+)(['’])\*\)$/.exec(m.text);
+		return x
+			? [issue(m, 'short-title-quotes', 'warning', 'Put the inverted commas of a short title outside the italics: (\'*Short Title*\').', 'r 1.4.4', { from: m.from + 2, to: m.to - 1, insert: `${x[1]}*${x[2]}*${x[3]}` }, m.from + 1, m.to)]
+			: [];
+	},
 });
 
 const author = (optional = false): ElementSpec => ({
@@ -188,6 +249,14 @@ const author = (optional = false): ElementSpec => ({
 		if (amp >= 0) {
 			const at = m.from + amp + 1;
 			out.push(issue(m, 'author-and', 'warning', 'Join authors with "and", not "&".', 'r 4.1', { from: at, to: at + 1, insert: 'and' }, at, at + 1));
+		}
+		const names = m.text.replace(/\s\((?:ed|eds)\)$/, '').split(/,\s|\sand\s/).filter((n) => n.trim());
+		// Organisations can have commas in their names ("Department of Infrastructure, Transport, …"): only
+		// count authors when every part reads as a personal name of two or more words.
+		const people = names.every((n) => n.trim().split(/\s+/).length >= 2)
+			&& !/^(?:Department|Commission|Council|Committee|Office|Ministry|Institute|Association|Society|Authority|Agency|Bureau|Parliament|Government|University|Centre|Center|Foundation|Board|Tribunal|Court)\b/.test(names[0]!.trim());
+		if (names.length >= 4 && people && !/\bet al\b/.test(m.text)) {
+			out.push(issue(m, 'et-al-four', 'warning', 'With four or more authors, give the first author followed by "et al".', 'r 4.1', { from: m.from, to: m.to, insert: `${names[0]!.trim()} et al` }));
 		}
 		const etal = /\bet al\./.exec(m.text);
 		if (etal) {
@@ -219,9 +288,10 @@ const MINOR_WORDS = new Set([
 export function titleCase(title: string): string | null {
 	let first = true;
 	let changed = false;
-	const out = title.replace(/[\p{L}\p{N}][\p{L}\p{N}'’-]*|[:?!—–]/gu, (w) => {
+	// Each part of a hyphenated word is capitalised ("Self-Help"), so hyphens separate words here.
+	const out = title.replace(/[\p{L}\p{N}][\p{L}\p{N}'’]*|[:?!—–]/gu, (w) => {
 		if (/^[:?!—–]$/.test(w)) { first = true; return w; }
-		const lower = /^[\p{Ll}][\p{Ll}'’-]*$/u.test(w);
+		const lower = /^[\p{Ll}][\p{Ll}'’]*$/u.test(w);
 		const wasFirst = first;
 		first = false;
 		if (!lower || (!wasFirst && MINOR_WORDS.has(w))) return w;
@@ -236,7 +306,7 @@ function titleCaseIssue(m: ElementMatch, from: number, to: number, ctx: CheckCon
 	const title = ctx.text.slice(from, to);
 	if (/https?:|<|\d{4}/.test(title)) return [];
 	const fixed = titleCase(title);
-	return fixed ? [issue(m, 'title-case', 'warning', `Capitalise the title: "${fixed.replace(/[*_]/g, '')}".`, 'ch 4', { from, to, insert: fixed }, from, to)] : [];
+	return fixed ? [issue(m, 'title-case', 'warning', `Capitalise the title: "${fixed.replace(/[*_]/g, '')}".`, 'r 1.7', { from, to, insert: fixed }, from, to)] : [];
 }
 
 const quotedTitle = (id: string, label: string, follow: string, leadingOptional = false): ElementSpec => ({
@@ -270,7 +340,8 @@ const yearBracket: ElementSpec = {
 	label: 'Year',
 	hint: '(Year) for volume-numbered series, [Year] for year-organised series (AGLC4 r 2.2.1)',
 	insert: ' (${Year})',
-	re: S('\\s(?:\\(\\d{4}\\)|\\[\\d{4}\\])'),
+	// At the very start when the case name is omitted (r 2.1.15).
+	re: S('(?:^|\\s)(?:\\(\\d{4}\\)|\\[\\d{4}\\])'),
 };
 
 const pageStart: ElementSpec = {
@@ -297,12 +368,19 @@ const LEGISLATION: SourceSpec = {
 			label: 'Title and year',
 			hint: 'Short title including the year, in italics (AGLC4 r 3.1.1)',
 			insert: '*${Title Year}*',
-			re: S(`(?:\\*[^*\\n]+?\\s\\d{4}\\*|_[^_\\n]+?\\s\\d{4}_|\\*[^*\\n]+\\*\\s\\d{4}|[A-Z][A-Za-z ,'’()&-]*?\\s\\d{4}(?=\\s?\\((?:${JUR}|[A-Z][A-Za-z.' ]*)\\)))`),
+			re: S(`(?:\\*[^*\\n]+?\\s\\d{4}\\*|_[^_\\n]+?\\s\\d{4}_|\\*[^*\\n]+\\*\\s\\d{4}|[A-Z][A-Za-z0-9 ,'’()&-]*?\\s\\d{4}(?=\\s?\\((?:${JUR}|[A-Z][A-Za-z.' ]*)\\)))`),
 			check: (m) => {
 				if (/^\*[^*]+\*\s\d{4}$/.test(m.text)) {
 					const title = stripItalic(m.text.replace(/\s\d{4}$/, ''));
 					const year = m.text.slice(-4);
 					return [issue(m, 'leg-year-italics', 'error', 'The year is part of the title and is italicised.', 'r 3.1.2', { from: m.from, to: m.to, insert: `*${title} ${year}*` })];
+				}
+				// Bills are cited like Acts, except that the title and year are not italicised (r 3.2).
+				const bill = /\bBill(?:\s\(No\s\d+\))?\s\d{4}[*_]?$/.test(m.text.trim());
+				if (bill) {
+					return isItalic(m.text)
+						? [issue(m, 'bill-italics', 'error', 'The title and year of a Bill are not italicised.', 'r 3.2', { from: m.from, to: m.to, insert: stripItalic(m.text) })]
+						: [];
 				}
 				if (!isItalic(m.text)) {
 					return [issue(m, 'leg-italics', 'error', 'Titles of legislation are italicised.', 'r 3.1.1', { from: m.from, to: m.to, insert: `*${m.text.trim()}*` })];
@@ -339,6 +417,15 @@ const LEGISLATION: SourceSpec = {
 			insert: ' s ${1}',
 			re: S(`\\s${LEG_PIN}`),
 			optional: true,
+			check: (m) => legAndCheck(m),
+		},
+		{
+			id: 'definition',
+			label: 'Definition',
+			hint: '(definition of \'term\'), after the section containing it (AGLC4 r 3.1.6)',
+			insert: ' (definition of \'${term}\')',
+			re: S(`\\s\\(definition of ${OPEN_Q}[^'’\\n]+${CLOSE_Q}(?:\\spara\\s(?:\\([^()]+\\))+)?\\)`),
+			optional: true,
 		},
 		{
 			id: 'pinpoint-more',
@@ -348,15 +435,24 @@ const LEGISLATION: SourceSpec = {
 			re: S(`,\\s${LEG_PIN}`),
 			optional: true,
 			repeat: true,
+			check: (m) => legAndCheck(m),
 		},
 		shortTitle(),
 	],
 };
 
+/** "ss 5, 7 and 9": AGLC4 separates the last two pinpoints with a comma, not "and" (r 3.1.5). */
+function legAndCheck(m: ElementMatch): Issue[] {
+	const x = /\s(and|or)\s(?=[\d(])/.exec(m.text);
+	if (!x) return [];
+	const at = m.from + x.index;
+	return [issue(m, 'leg-and', 'warning', 'Separate pinpoints with commas, not "and".', 'r 3.1.5', { from: at, to: at + x[0].length, insert: ', ' }, at + 1, at + 1 + x[1]!.length)];
+}
+
 const LEGISLATION_SHORT: SourceSpec = {
 	kind: 'legislation-short',
 	label: 'Legislation (short title)',
-	ref: 'r 1.4.1',
+	ref: 'r 3.5',
 	claimAfter: 'pinpoint',
 	example: '*Native Title Act* s 223',
 	start: '*${Short Title}* s ${1}',
@@ -364,9 +460,12 @@ const LEGISLATION_SHORT: SourceSpec = {
 		{
 			id: 'title',
 			label: 'Short title',
-			hint: 'The short title defined when the Act was first cited',
+			hint: 'The Australian Constitution, or the short title defined when the Act was first cited',
 			insert: '*${Short Title}*',
 			re: S(ITALIC),
+			check: (m) => (/^[*_](?:Australian |Commonwealth )?Constitution[*_]$/.test(m.text)
+				? []
+				: [issue(m, 'leg-short-n', 'error', 'A later reference to legislation by its short title needs the footnote of the full citation: "*Short Title* (n X) s 5".', 'r 3.5', undefined)]),
 		},
 		{
 			id: 'pinpoint',
@@ -428,6 +527,7 @@ const CASE_MNC: SourceSpec = {
 				: []),
 		},
 		judges,
+		notes,
 		shortTitle(),
 	],
 };
@@ -437,7 +537,7 @@ const CASE_REPORTED: SourceSpec = {
 	label: 'Case (reported)',
 	ref: 'r 2.2',
 	claimAfter: 'year',
-	example: '*Mabo v Queensland (No 2)* (1992) 175 CLR 1, 30',
+	example: '*Mabo v Queensland [No 2]* (1992) 175 CLR 1, 30',
 	start: '*${Party v Party}* (${Year}) ${Volume} ${CLR} ${1}',
 	elements: [
 		caseName,
@@ -455,7 +555,7 @@ const CASE_REPORTED: SourceSpec = {
 			label: 'Law report series',
 			hint: 'Abbreviation of the report series, eg CLR, ALR, NSWLR, VR (AGLC4 r 2.2.2)',
 			insert: ' ${CLR}',
-			re: S('\\s[A-Z][A-Za-z\'’]*\\.?(?:\\s(?:\\([A-Z][A-Za-z]*\\)|[A-Z][A-Za-z\'’]*\\.?|\\d[a-z]{1,2}))*?(?=\\s\\d|$)'),
+			re: S('\\s[A-Z][A-Za-z\'’]*\\.?(?:\\s(?:\\([A-Z][A-Za-z]*\\)|[A-Z][A-Za-z\'’]*\\.?|\\d[a-z]{1,2}))*?(?=\\s\\d|\\s¶|$)'),
 			reject: (m) => MNC_COURTS.has(m[0].trim()),
 			check: (m, ctx) => {
 				const out: Issue[] = [];
@@ -470,9 +570,7 @@ const CASE_REPORTED: SourceSpec = {
 					} else if (!round && VOLUME_SERIES.has(series)) {
 						out.push(issue(m, 'year-brackets', 'error', `${series} is organised by volume: put the year in round brackets.`, 'r 2.2.1', { from: yFrom, to: year.to, insert: `(${y})` }, yFrom, year.to));
 					}
-					if (round && !ctx.matched.volume) {
-						out.push(issue(m, 'volume-missing', 'error', 'A year in round brackets must be followed by a volume number.', 'r 2.2.1', undefined, yFrom, m.to));
-					}
+
 				}
 				if (/\./.test(series)) {
 					out.push(issue(m, 'series-full-stops', 'warning', 'Report series abbreviations take no full stops.', 'Part I', { from: bodyStart(m), to: m.to, insert: series.replace(/\./g, '') }, bodyStart(m), m.to));
@@ -480,9 +578,20 @@ const CASE_REPORTED: SourceSpec = {
 				return out;
 			},
 		},
-		pageStart,
+		{
+			...pageStart,
+			hint: 'First page, or the report\'s unique reference (eg ¶93-198)',
+			re: S('\\s(?:\\d+|¶\\d+-\\d+)'),
+			check: (m, ctx) => {
+				// A series arranged by volume needs a volume, except one cited by unique reference (r 2.2.1, 2.2.4).
+				const year = ctx.matched.year;
+				if (!year || !year.text.includes('(') || ctx.matched.volume || m.text.includes('¶')) return [];
+				return [issue(m, 'volume-missing', 'error', 'A year in round brackets must be followed by a volume number.', 'r 2.2.1', undefined, bodyStart(year), ctx.matched.series?.to ?? m.to)];
+			},
+		},
 		pinpoints,
 		judges,
+		notes,
 		shortTitle(),
 	],
 };
@@ -506,16 +615,17 @@ const CASE_UNREPORTED: SourceSpec = {
 		{
 			id: 'judge',
 			label: 'Judicial officer',
-			hint: 'eg Smith J',
+			hint: 'eg Smith J; for a proceeding with no judgment, the proceeding number (eg VID725/2014)',
 			insert: ', ${Name J}',
-			re: S(`,\\s[^,()\\n]*?\\b${JUDGE_TITLES}(?=,)`),
+			// Judges may include commas ("Charles, Callaway JJA and Vincent AJA"); a proceeding has a number (r 2.3.3).
+			re: S(`,\\s(?:[^()\\n]*?\\b(?:${JUDGE_TITLES}|${JUDGE_PREFIX}\\s[A-Z][a-z]+)|[A-Z]{1,5}\\d+\\/\\d{4})(?=,\\s(?:commenced\\s)?\\d)`),
 		},
 		{
 			id: 'date',
 			label: 'Date of judgment',
 			hint: 'Day Month Year',
 			insert: ', ${1 January 2000}',
-			re: S(`,\\s${DATE}`),
+			re: S(`,\\s(?:commenced\\s)?${DATE}`),
 		},
 		{
 			id: 'close',
@@ -562,7 +672,22 @@ const HANSARD: SourceSpec = {
 		},
 		{ id: 'date', label: 'Date', hint: 'Day Month Year', insert: ', ${1 January 2000}', re: S(`,\\s${DATE}`) },
 		{ id: 'page', label: 'Page', hint: 'Page number of the Hansard', insert: ', ${1}', re: S(',\\s\\d+(?:[–-]\\d+)?') },
-		{ id: 'speaker', label: 'Speaker', hint: 'Name of the speaker, and position if relevant', insert: ' (${Speaker Name})', re: S('\\s\\([^()\\n]+\\)'), optional: true },
+		{
+			id: 'speaker',
+			label: 'Speaker',
+			hint: 'First and last name of the speaker, and position if relevant (AGLC4 r 7.5.1)',
+			insert: ' (${Speaker Name})',
+			re: S('\\s\\([^()\\n]+\\)'),
+			optional: true,
+			check: (m) => {
+				const re = /\s?\b(?:Senator|the Hon|The Hon|Hon|MP|MLC|MLA|MHR|QC|SC|KC)\b/g;
+				const found = m.text.match(re);
+				if (!found) return [];
+				const cleaned = m.text.replace(re, '').replace(/\(\s+/, '(');
+				const words = found.map((f) => f.trim()).join('", "');
+				return [issue(m, 'hansard-speaker', 'warning', `Leave out "${words}": give the speaker's first and last names only.`, 'r 7.5.1', { from: m.from, to: m.to, insert: cleaned }, m.from + 1, m.to)];
+			},
+		},
 	],
 };
 
@@ -570,7 +695,7 @@ const TREATY: SourceSpec = {
 	kind: 'treaty',
 	label: 'Treaty',
 	ref: 'ch 8',
-	claimAfter: 'opened',
+	claimAfter: 'series',
 	example: '*Convention on the Rights of the Child*, opened for signature 20 November 1989, 1577 UNTS 3 (entered into force 2 September 1990) art 3',
 	start: '*${Treaty Title}*, opened for signature ${1 January 2000}, ${1} UNTS ${1} (entered into force ${1 January 2000})',
 	elements: [
@@ -581,27 +706,31 @@ const TREATY: SourceSpec = {
 			hint: 'opened for signature / signed Day Month Year',
 			insert: ', opened for signature ${1 January 2000}',
 			re: S(`,\\s(?:opened for signature|signed|adopted|concluded|done)\\s${DATE}`),
+			// Omitted when signed and entered into force on the same day (r 8.3.2).
+			optional: true,
 		},
 		{
 			id: 'series',
 			label: 'Treaty series',
 			hint: 'Volume, series and page, eg 1577 UNTS 3 or [1991] ATS 4',
 			insert: ', ${1} UNTS ${1}',
-			re: S(',\\s(?:\\[\\d{4}\\]\\s|\\d+\\s)[A-Z][A-Za-z .]*?\\s\\d+'),
+			// "1577 UNTS 3", "[2010] ATS 5", "CETS No 207" (r 8.4)
+			re: S(',\\s(?:(?:\\[\\d{4}\\]\\s|\\d+\\s)[A-Z][A-Za-z .]*?\\s\\d+|[A-Z]{2,}\\sNo\\s\\d+)'),
 		},
 		{
 			id: 'force',
 			label: 'Entry into force',
 			hint: '(entered into force Day Month Year) or (not yet in force)',
 			insert: ' (entered into force ${1 January 2000})',
-			re: S(`\\s\\((?:entered into force\\s${DATE}|not yet in force)[^()\\n]*\\)`),
+			re: S(`\\s\\((?:entered into force\\s${DATE}|signed and entered into force\\s${DATE}|not yet in force)[^()\\n]*\\)`),
 		},
 		{
 			id: 'pinpoint',
 			label: 'Pinpoint',
 			hint: 'Article, eg art 3',
 			insert: ' art ${1}',
-			re: S('\\s(?:arts?|ch|pt|annex|paras?|sch)\\s[\\w().–-]+(?:(?:,\\s|\\sand\\s)[\\w().–-]+)*'),
+			// "art 3", "arts 2, 26", "art III s 9" (r 8.7)
+			re: S(`\\s${LEG_PIN}`),
 			optional: true,
 		},
 		shortTitle(),
@@ -655,24 +784,37 @@ const JOURNAL: SourceSpec = {
 	elements: [
 		author(),
 		quotedTitle('title', 'Article title', '\\s[[(]\\d'),
-		{ ...yearBracket, hint: '(Year) if the journal has volume numbers, [Year] otherwise (AGLC4 ch 5)' },
+		{
+			...yearBracket,
+			hint: '(Year) if the journal has volume numbers, [Year] otherwise (AGLC4 r 5.3)',
+			// A volume spanning years is given as a span: "[1992–93]".
+			re: S('\\s(?:\\(\\d{4}\\)|\\[\\d{4}(?:–\\d{2,4})?\\])'),
+		},
 		{
 			id: 'volume',
 			label: 'Volume (issue)',
-			hint: 'Volume and issue, eg 28(1)',
+			hint: 'Volume and issue, eg 28(1); issue only for year-organised journals, eg [2000] (1) (AGLC4 r 5.4)',
 			insert: ' ${Volume}(${Issue})',
-			re: S('\\s\\d+(?:\\(\\d+(?:[–-]\\d+)?\\))?(?=\\s|$)'),
+			// "28(1)", "66(1–2)", "133 (January)", "31 (Winter)", or an issue alone: "(1)", "(Winter)".
+			re: S(`\\s(?:\\d+(?:\\(\\d+(?:[–-]\\d+)?\\))?(?:\\s\\((?:${MONTH}|Spring|Summer|Autumn|Winter|Fall)\\))?|\\((?:\\d+(?:[–-]\\d+)?|${MONTH}|Spring|Summer|Autumn|Winter|Fall)\\))(?=\\s|$)`),
 			optional: true,
+			check: (m, ctx) => (/^\s\d+$/.test(m.text) && ctx.matched.year?.text.includes('(')
+				? [issue(m, 'journal-issue', 'info', 'Include the issue number after the volume, eg "40(1)", if the journal has issues.', 'r 5.4')]
+				: []),
 		},
 		{
 			id: 'journal',
 			label: 'Journal',
 			hint: 'Full title of the journal, in italics, without a leading "The" (AGLC4 ch 5)',
 			insert: ' *${Journal Title}*',
-			re: S('\\s(?:\\*[^*\\n]+\\*|_[^_\\n]+_|[A-Z][A-Za-z&\'’ .:()-]*?)(?=\\s\\d|\\s\\(forthcoming\\)|$)'),
+			re: S('\\s(?:\\*[^*\\n]+\\*|_[^_\\n]+_|[A-Z][A-Za-z&\'’ .:()-]*?)(?=\\s\\d|\\s\\((?:forthcoming|advance)\\)|$)'),
 			check: (m, ctx) => journalChecks(m, ctx),
 		},
-		{ ...pageStart, hint: 'First page of the article, or (forthcoming)', re: S('\\s(?:\\d+|\\(forthcoming\\))') },
+		{
+			...pageStart,
+			hint: 'First page of the article; (forthcoming) or (advance); for online journals the article number and page range, eg 416:1–19',
+			re: S('\\s(?:\\d+:\\d+(?:–\\d+)?|\\d+|\\(forthcoming\\)|\\(advance\\))'),
+		},
 		pinpoints,
 		shortTitle(),
 	],
@@ -719,8 +861,30 @@ const CHAPTER: SourceSpec = {
 	],
 };
 
+/** Theses and dissertations take their title in single quotation marks, not italics (r 7.2.5). */
+function thesisCheck(m: ElementMatch, ctx: CheckContext): Issue[] {
+	const title = ctx.matched.title;
+	if (!title || !/\b(?:Thesis|Dissertation)\b/.test(m.text)) return [];
+	const at = bodyStart(title);
+	const text = ctx.text.slice(at, title.to);
+	return [issue(m, 'thesis-title', 'error', 'The title of a thesis goes in single quotation marks, not italics.', 'r 7.2.5', { from: at, to: title.to, insert: `'${stripItalic(text)}'` }, at, title.to)];
+}
+
 function publicationChecks(m: ElementMatch): Issue[] {
 	const out: Issue[] = [];
+	// Publisher (r 6.3.1): no leading "The", no corporate status ("Lawbook", not "Lawbook Co").
+	const publisher = /^\s\(([^,()]+),/.exec(m.text);
+	if (publisher && !/\b(?:Report|Paper|Thesis|Dissertation|Inquiry|Submission|No)\b/.test(publisher[1]!)) {
+		const at = m.from + 2;
+		if (/^The\s/.test(publisher[1]!)) {
+			out.push(issue(m, 'publisher-the', 'warning', 'Leave out "The" at the start of a publisher\'s name.', 'r 6.3.1', { from: at, to: at + 4, insert: '' }, at, at + 3));
+		}
+		const corp = /\s(?:Pty|Ltd|Co|Inc|Limited|Company|Pty Ltd)$/.exec(publisher[1]!);
+		if (corp) {
+			const cAt = at + corp.index;
+			out.push(issue(m, 'publisher-corporate', 'warning', 'Leave out corporate status in a publisher\'s name ("Lawbook", not "Lawbook Co").', 'r 6.3.1', { from: cAt, to: cAt + corp[0].length, insert: '' }, cAt + 1, cAt + corp[0].length));
+		}
+	}
 	const ed = /\b(\d+(?:st|nd|rd|th))\s(edition|[Ee]dn?\.?|Ed\.?)(?=[,)])/.exec(m.text);
 	if (ed && ed[2] !== 'ed') {
 		const at = m.from + ed.index + ed[1]!.length + 1;
@@ -753,15 +917,18 @@ const BOOK: SourceSpec = {
 	example: 'Jane Smith, *Principles of Australian Law* (Federation Press, 3rd ed, 2018) 45',
 	start: '${Author}, *${Title}* (${Publisher}, ${Year})',
 	elements: [
-		author(),
-		italicTitle('title', 'Title', 'Title in italics (AGLC4 r 4.2)'),
+		// A report may have no author (r 4.1.4, 7.1.1): "*Review of the Law of Negligence* (Final Report, September 2002)".
+		author(true),
+		{ ...italicTitle('title', 'Title', 'Title in italics (AGLC4 r 6.2)'), insert: '*${Title}*', re: S(`(?:^|,\\s)${ITALIC}`) },
 		{
 			id: 'publication',
 			label: 'Publication details',
 			hint: 'Book: (Publisher, edition, Year). Report: (Report No 1, Month Year)',
 			insert: ' (${Publisher}, ${Year})',
 			re: S('\\s\\((?:[^()\\n]|\\([^()\\n]*\\))*?\\d{4}\\)'),
-			check: (m) => publicationChecks(m),
+			// Without an author, "(1992)" after an italic title is a case, not a book.
+			reject: (m, ctx) => !ctx.matched.author && !/[A-Za-z]/.test(m[0]),
+			check: (m, ctx) => [...publicationChecks(m), ...thesisCheck(m, ctx)],
 		},
 		{
 			...pinpoints,
@@ -771,7 +938,18 @@ const BOOK: SourceSpec = {
 			re: S(`\\s${BOOK_PIN}`),
 			hint: 'Page (" 45") or paragraph (" [4.12]") after a space',
 		},
-		{ ...pinpoints, id: 'pinpoint-more', insert: ', ${pinpoint}', re: S(`,\\s${BOOK_PIN}`), label: 'Further pinpoint', hint: 'Another page or paragraph' },
+		{
+			...pinpoints,
+			id: 'pinpoint-more',
+			insert: ', ${pinpoint}',
+			re: S(`,\\s${BOOK_PIN}`),
+			label: 'Further pinpoint',
+			hint: 'Another page or paragraph',
+			// The first pinpoint follows the publication details without a comma (r 6.4).
+			check: (m, ctx) => (ctx.matched.pinpoint || /^,\s(?:vol|bk)\b/.test(m.text)
+				? []
+				: [issue(m, 'book-pinpoint-comma', 'error', 'A pinpoint follows the publication details without a comma.', 'r 6.4', { from: m.from, to: m.from + 1, insert: '' }, m.from, m.from + 1)]),
+		},
 		urlElement(true),
 		shortTitle(),
 	],
@@ -787,7 +965,15 @@ const NEWSPAPER: SourceSpec = {
 	elements: [
 		author(true),
 		quotedTitle('title', 'Headline', ',\\s', true),
-		italicTitle('paper', 'Newspaper', 'Name of the newspaper, in italics'),
+		{
+			id: 'section',
+			label: 'Section',
+			hint: 'Named section, if the newspaper is not consecutively paginated (AGLC4 r 7.11.1)',
+			insert: ', ${Section}',
+			re: S('(?:^|,\\s)[A-Z][\\w ]*?(?=,\\s[*_])'),
+			optional: true,
+		},
+		{ ...italicTitle('paper', 'Newspaper', 'Name of the newspaper, in italics, including "The" from the masthead'), check: undefined },
 		{
 			id: 'details',
 			label: 'Place and date',
@@ -810,7 +996,18 @@ const INTERNET: SourceSpec = {
 	start: '${Author}, \'${Title}\' (${Web Page}, ${1 January 2000}) <${https://}>',
 	elements: [
 		author(true),
-		quotedTitle('title', 'Title', '\\s\\(', true),
+		quotedTitle('title', 'Document title', '\\s\\(|,\\s', true),
+		{
+			id: 'site',
+			label: 'Website',
+			hint: 'Title of the website, in italics, if it differs from the author: , *Website Title*',
+			insert: ', *${Website Title}*',
+			re: S(`,\\s(?:${ITALIC}|[A-Z][^,()<>\\n]*?)(?=\\s\\()`),
+			optional: true,
+			check: (m) => (isItalic(m.text.slice(2))
+				? []
+				: [issue(m, 'site-italics', 'warning', 'The title of a website is italicised, like a book title.', 'r 7.15', { from: m.from + 2, to: m.to, insert: `*${m.text.slice(2)}*` }, m.from + 2, m.to)]),
+		},
 		{
 			id: 'details',
 			label: 'Document type and date',
@@ -851,8 +1048,16 @@ const PAPER: SourceSpec = {
 			label: 'Document type and date',
 			hint: '(Speech, Event, Day Month Year), (Conference Paper, …), (Media Release, …), (Working Paper No 1, …)',
 			insert: ' (${Speech}, ${Event}, ${1 January 2000})',
-			re: S('\\s\\([A-Z][^()\\n]*\\d{4}\\)'),
+			// "(Speech, Inner Temple, 23 January 2012)", or for an undated-type document a date alone: "(4 March 2015)".
+			re: S(`\\s\\((?:[A-Z][^()\\n]*\\d{4}|${DATE}|\\d{4})\\)`),
 			reject: (m) => WEB_TYPES.test(m[0]),
+			check: (m) => {
+				// Conferences and named lectures are given without ordinal numbers (r 7.2.4, 7.3).
+				const ord = /\b\d+(?:st|nd|rd|th)\s(?=[A-Z])/.exec(m.text);
+				if (!ord) return [];
+				const at = m.from + ord.index;
+				return [issue(m, 'conference-ordinal', 'warning', 'Leave out the ordinal number of a conference or lecture.', 'r 7.2.4', { from: at, to: at + ord[0].length, insert: '' }, at, at + ord[0].length - 1)];
+			},
 		},
 		{ ...pinpoints, repeat: false, insert: ' ${pinpoint}', re: S(`\\s${PIN}`), hint: 'Page or paragraph after a space' },
 		urlElement(true),
@@ -893,9 +1098,9 @@ const EXPLANATORY: SourceSpec = {
 		{
 			id: 'pinpoint',
 			label: 'Pinpoint',
-			hint: 'Page, paragraph, or both: "12", "[45]", "12 [45]"',
+			hint: 'Page, paragraph, or both: "12", "[45]", "12 [45]"; several separated by commas',
 			insert: ' ${1}',
-			re: S('\\s(?:\\d+(?:[–-]\\d+)?(?:\\s\\[[\\d.]+\\](?:[–-]\\[[\\d.]+\\])?)?|\\[[\\d.]+\\](?:[–-]\\[[\\d.]+\\])?)'),
+			re: S(`\\s(?:${PIN_PARA}|${PIN_PAGE})(?:,\\s(?:${PIN_PARA}|${PIN_PAGE}))*`),
 			optional: true,
 		},
 		shortTitle(),
@@ -933,9 +1138,9 @@ const IBID: SourceSpec = {
 		{
 			id: 'pinpoint',
 			label: 'Pinpoint',
-			hint: 'New pinpoint after a space, eg "Ibid 45" or "Ibid [12]" or "Ibid s 5"',
+			hint: 'New pinpoint after a space, eg "Ibid 45", "Ibid [12]", "Ibid s 5", "Ibid 222, 239"',
 			insert: ' ${pinpoint}',
-			re: S(`,?\\s(?:${LEG_PIN}|${PIN})`),
+			re: S(`,?\\s(?:${LEG_PIN}|${PIN}(?:,\\s${PIN})*)`),
 			optional: true,
 			check: (m) => (m.text.startsWith(',')
 				? [issue(m, 'ibid-comma', 'error', 'No comma between "Ibid" and the pinpoint.', 'r 1.4.3', { from: m.from, to: m.from + 1, insert: '' }, m.from, m.from + 1)]
@@ -959,7 +1164,7 @@ const SUBSEQUENT: SourceSpec = {
 			hint: 'Case short title in italics, or author surname (and short title, for an author of several works)',
 			insert: '${Short title}',
 			// "*Mabo*", "Smith", or for an author of several works "Smith, *Principles*" / "Smith, 'Title'".
-			re: new RegExp(`(?:\\*[^*\\n]+\\*|_[^_\\n]+_|${NAME}(?:,\\s(?:\\*[^*\\n]+\\*|_[^_\\n]+_|['‘][^'’\\n]+['’]))?)(?=\\s\\((?:n|fn|note|supra n)\\.?\\s?\\d|\\s?$)`, 'yu'),
+			re: new RegExp(`(?:\\*[^*\\n]+\\*|_[^_\\n]+_|${NAME}(?:\\s\\((?:ed|eds)\\))?(?:,\\s(?:\\*[^*\\n]+\\*|_[^_\\n]+_|['‘][^'’\\n]+['’]))?)(?=\\s\\((?:n|fn|note|supra n)\\.?\\s?\\d|\\s?$)`, 'yu'),
 		},
 		{
 			id: 'n',

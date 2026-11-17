@@ -10,6 +10,8 @@ export type Inline =
 	| { t: 'strong'; c: Inline[] }
 	| { t: 'strike'; c: Inline[] }
 	| { t: 'mark'; c: Inline[] }
+	/** Superscript, used for ordinal suffixes ("15th") as AGLC4 sets them (r 1.10.1, 6.3.2). */
+	| { t: 'sup'; c: Inline[] }
 	| { t: 'code'; v: string }
 	| { t: 'link'; href: string; c: Inline[] }
 	/** An AGLC URL in angle brackets: the brackets are part of the citation and are kept. */
@@ -394,6 +396,33 @@ export function parseMarkdown(src: string): MdDocument {
 		if (!footnotes.has(def[1]!)) footnotes.set(def[1]!, parseBlocks(content));
 	}
 	return { blocks: parseBlocks(body), footnotes, frontmatter };
+}
+
+/**
+ * Set the suffixes of ordinal numbers in superscript, as AGLC4 does for editions and ordinals over nine
+ * (r 6.3.2, 1.10.1): "3rd ed" → 3<sup>rd</sup> ed. Code and URLs are left alone.
+ */
+export function superscriptOrdinals(nodes: Inline[]): Inline[] {
+	const out: Inline[] = [];
+	for (const n of nodes) {
+		if (n.t === 'text') {
+			const re = /(\d)(st|nd|rd|th)\b/g;
+			let last = 0;
+			let m: RegExpExecArray | null;
+			while ((m = re.exec(n.v))) {
+				const cut = m.index + 1;
+				if (cut > last) out.push({ t: 'text', v: n.v.slice(last, cut) });
+				out.push({ t: 'sup', c: [{ t: 'text', v: m[2]! }] });
+				last = cut + m[2]!.length;
+			}
+			if (last < n.v.length) out.push({ t: 'text', v: n.v.slice(last) });
+		} else if ('c' in n && n.t !== 'link') {
+			out.push({ ...n, c: superscriptOrdinals(n.c) });
+		} else {
+			out.push(n);
+		}
+	}
+	return out;
 }
 
 /** Walk inline content, calling `fn` on every node (depth first). */

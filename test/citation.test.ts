@@ -10,7 +10,7 @@ function rules(text: string) {
 
 describe('recognises correct AGLC4 citations without issues', () => {
 	const good: [string, string][] = [
-		['*Mabo v Queensland (No 2)* (1992) 175 CLR 1, 30 (Brennan J).', 'case-reported'],
+		['*Mabo v Queensland [No 2]* (1992) 175 CLR 1, 30 (Brennan J).', 'case-reported'],
 		['*Donoghue v Stevenson* [1932] AC 562, 580.', 'case-reported'],
 		['*Love v Commonwealth* [2020] HCA 3, [81].', 'case-mnc'],
 		['*R v Smith* (Supreme Court of Victoria, Smith J, 12 March 1990).', 'case-unreported'],
@@ -49,7 +49,7 @@ describe('recognises correct AGLC4 citations without issues', () => {
 	});
 
 	it('handles several sources with signals', () => {
-		const t = 'See, eg, *Mabo v Queensland (No 2)* (1992) 175 CLR 1; *Native Title Act 1993* (Cth) s 223.';
+		const t = 'See, eg, *Mabo v Queensland [No 2]* (1992) 175 CLR 1; *Native Title Act 1993* (Cth) s 223.';
 		expect(kinds(t)).toEqual(['case-reported', 'legislation']);
 		expect(rules(t)).toEqual([]);
 	});
@@ -62,19 +62,19 @@ describe('recognises correct AGLC4 citations without issues', () => {
 
 describe('flags incorrect and incomplete citations', () => {
 	it('unitalicised case name', () => {
-		const a = analyseFootnote('Mabo v Queensland (No 2) (1992) 175 CLR 1.');
+		const a = analyseFootnote('Mabo v Queensland [No 2] (1992) 175 CLR 1.');
 		expect(a.issues.map((i) => i.rule)).toContain('case-italics');
-		expect(a.issues.find((i) => i.rule === 'case-italics')!.fix!.insert).toBe('*Mabo v Queensland (No 2)*');
+		expect(a.issues.find((i) => i.rule === 'case-italics')!.fix!.insert).toBe('*Mabo v Queensland [No 2]*');
 	});
 	it('wrong year brackets for the series', () => {
-		expect(rules('*Mabo v Queensland (No 2)* [1992] 175 CLR 1.')).toContain('year-brackets');
+		expect(rules('*Mabo v Queensland [No 2]* [1992] 175 CLR 1.')).toContain('year-brackets');
 		expect(rules('*Donoghue v Stevenson* (1932) AC 562.')).toContain('year-brackets');
 	});
 	it('round brackets on a medium neutral citation', () => {
 		expect(rules('*Love v Commonwealth* (2020) HCA 3.')).toContain('mnc-brackets');
 	});
 	it('missing starting page', () => {
-		const a = analyseFootnote('*Mabo v Queensland (No 2)* (1992) 175 CLR.');
+		const a = analyseFootnote('*Mabo v Queensland [No 2]* (1992) 175 CLR.');
 		expect(a.issues.map((i) => i.rule)).toContain('incomplete');
 		expect(a.issues.find((i) => i.rule === 'incomplete')!.message).toMatch(/starting page/);
 	});
@@ -93,7 +93,7 @@ describe('flags incorrect and incomplete citations', () => {
 		expect(rules('Jane Smith, \'Title\' (2004) 28(1) *Melbourne University Law Review* 1.')).not.toContain('journal-italics');
 	});
 	it('missing closing full stop', () => {
-		expect(rules('*Mabo v Queensland (No 2)* (1992) 175 CLR 1')).toContain('closing-stop');
+		expect(rules('*Mabo v Queensland [No 2]* (1992) 175 CLR 1')).toContain('closing-stop');
 	});
 	it('comma between (n X) and pinpoint', () => {
 		expect(rules('*Mabo* (n 3), 30.')).toContain('n-comma');
@@ -112,10 +112,10 @@ describe('flags incorrect and incomplete citations', () => {
 describe('suggests the next element', () => {
 	const next = (t: string) => nextRequired(t)?.label;
 	it('case', () => {
-		expect(next('*Mabo v Queensland (No 2)*')).toBe('Year');
-		expect(next('*Mabo v Queensland (No 2)* (1992)')).toBe('Law report series');
-		expect(next('*Mabo v Queensland (No 2)* (1992) 175')).toBe('Law report series');
-		expect(next('*Mabo v Queensland (No 2)* (1992) 175 CLR')).toBe('Starting page');
+		expect(next('*Mabo v Queensland [No 2]*')).toBe('Year');
+		expect(next('*Mabo v Queensland [No 2]* (1992)')).toBe('Law report series');
+		expect(next('*Mabo v Queensland [No 2]* (1992) 175')).toBe('Law report series');
+		expect(next('*Mabo v Queensland [No 2]* (1992) 175 CLR')).toBe('Starting page');
 		expect(next('*Love v Commonwealth* [2020] HCA')).toBe('Judgment number');
 	});
 	it('legislation', () => {
@@ -131,7 +131,7 @@ describe('suggests the next element', () => {
 		expect(next('Jane Smith, *Principles*')).toBe('Publication details');
 	});
 	it('offers optional elements and finishing once complete', () => {
-		const labels = suggestNext('*Mabo v Queensland (No 2)* (1992) 175 CLR 1').map((s) => s.label);
+		const labels = suggestNext('*Mabo v Queensland [No 2]* (1992) 175 CLR 1').map((s) => s.label);
 		expect(labels).toContain('Pinpoint');
 		expect(labels).toContain('End footnote');
 	});

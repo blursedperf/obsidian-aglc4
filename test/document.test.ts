@@ -20,12 +20,12 @@ describe('note-level rules', () => {
 	});
 
 	it('Ibid after a footnote with two sources', () => {
-		const t = 'A.[^1] B.[^2]\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1; *Native Title Act 1993* (Cth).\n[^2]: Ibid 5.';
+		const t = 'A.[^1] B.[^2]\n\n[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1; *Native Title Act 1993* (Cth).\n[^2]: Ibid 5.';
 		expect(rules(t)).toContain('ibid-multiple');
 	});
 
 	it('repeated full citation of the preceding single source suggests Ibid', () => {
-		const t = 'A.[^1] B.[^2]\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1.\n[^2]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1, 30.';
+		const t = 'A.[^1] B.[^2]\n\n[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1.\n[^2]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1, 30.';
 		const issue = analyseDocument(t).issues.find((i) => i.rule === 'use-ibid')!;
 		expect(issue.fix!.insert).toBe('Ibid 30');
 	});
@@ -37,7 +37,7 @@ describe('note-level rules', () => {
 	});
 
 	it('cross-reference checks', () => {
-		const base = 'A.[^1] B.[^2]\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1.\n';
+		const base = 'A.[^1] B.[^2]\n\n[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1.\n';
 		expect(rules(base + '[^2]: *Mabo* (n 5) 3.')).toContain('n-missing');
 		expect(rules(base + '[^2]: *Mabo* (n 2) 3.')).toContain('n-forward');
 		expect(rules(base + '[^2]: *Wik* (n 1) 3.')).toContain('n-mismatch');
@@ -52,7 +52,7 @@ describe('note-level rules', () => {
 	});
 
 	it('does not flag the footnote being typed as unfinished', () => {
-		const t = 'A.[^1]\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175';
+		const t = 'A.[^1]\n\n[^1]: *Mabo v Queensland [No 2]* (1992) 175';
 		expect(analyseDocument(t, { cursor: t.length }).issues.map((i) => i.rule)).not.toContain('closing-stop');
 		expect(analyseDocument(t).issues.map((i) => i.rule)).toContain('closing-stop');
 	});
@@ -80,9 +80,9 @@ describe('footnote tidying', () => {
 	});
 
 	it('remaps (n X) when a footnote is inserted before', () => {
-		const before = 'A.[^1] B.[^2]\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1.\n[^2]: *Mabo* (n 1) 4.\n';
+		const before = 'A.[^1] B.[^2]\n\n[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1.\n[^2]: *Mabo* (n 1) 4.\n';
 		const keysBefore = footnoteKeys(scanFootnotes(before));
-		const after = 'New.[^new] A.[^1] B.[^2]\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1.\n[^2]: *Mabo* (n 1) 4.\n[^new]: Ibid.\n';
+		const after = 'New.[^new] A.[^1] B.[^2]\n\n[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1.\n[^2]: *Mabo* (n 1) 4.\n[^new]: Ibid.\n';
 		const keysAfter = footnoteKeys(scanFootnotes(after));
 		const r = remapCrossReferences(after, keysBefore, keysAfter);
 		expect(r.changed).toBe(1);
@@ -104,17 +104,17 @@ describe('sample notes', () => {
 			if (!r.applied) break;
 			t = r.text;
 		}
-		expect(t).toContain('[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1, 30.');
+		expect(t).toContain('[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1, 30.');
 		expect(t).toContain('[^2]: Ibid 31.');
 		expect(t).toContain('[^3]: *Native Title Act 1993* (Cth) s 223.');
 		expect(t).toContain('[^5]: *Love v Commonwealth* [2020] HCA 3, [81].');
 		expect(t).toContain('(Web Page, 1 May 2020) <https://example.org>.');
-		expect(analyseDocument(t).issues.map((i) => i.rule)).toEqual(['not-aglc']);
+		expect(analyseDocument(t).issues.filter((i) => i.severity !== 'info').map((i) => i.rule)).toEqual(['not-aglc']);
 	});
 });
 
 describe('returning from a footnote', () => {
-	const note = 'First claim.[^1] Second claim.[^2]\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1.\n[^2]: Ibid 4';
+	const note = 'First claim.[^1] Second claim.[^2]\n\n[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1.\n[^2]: Ibid 4';
 	it('finds the reference of the footnote at the cursor', () => {
 		const inFirst = note.indexOf('Mabo');
 		expect(referenceFor(note, inFirst)).toBe(note.indexOf('[^1]') + 4);
@@ -144,7 +144,7 @@ describe('note-level rules added in review', () => {
 		expect(issue.message).toMatch(/quotation marks/);
 		expect(applyFixes(t, [issue]).text).toContain('\u2018reasonableness\u2019[^1] here.');
 		// An apostrophe in a word is not a closing quotation mark.
-		expect(rules('The Court[^1]\'s view.\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1.')).not.toContain('ref-after-punct');
+		expect(rules('The Court[^1]\'s view.\n\n[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1.')).not.toContain('ref-after-punct');
 	});
 
 	it('treats a footnote ending in a quoted sentence as closed', () => {
@@ -153,7 +153,7 @@ describe('note-level rules added in review', () => {
 	});
 
 	it('words unexpected-text messages with element labels', () => {
-		const t = 'A.[^1]\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1, 42 zzz qqq.';
+		const t = 'A.[^1]\n\n[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1, 42 zzz qqq.';
 		const issue = analyseDocument(t).issues.find((i) => i.rule === 'unexpected')!;
 		expect(issue.message).toMatch(/^Unexpected text after the pinpoint of this case \(reported\) citation/);
 	});

@@ -40,6 +40,28 @@ function elementText(c: CitationAnalysis, id: string): string | null {
 	return m ? m.text.replace(/^[,\s]+/, '') : null;
 }
 
+/** Whether the single source of a footnote has a pinpoint. */
+function prevPinpoint(prev: FootnoteAnalysis): boolean {
+	const c = prev.segments.find((s) => s.segment.body.length > 0);
+	return !!c && pinpointTexts(c).length > 0;
+}
+
+/**
+ * The pinpoint the footnote at `idx` refers to, following "Ibid" without a pinpoint back to its source.
+ * Null when that footnote has several sources or none.
+ */
+function effectivePinpoint(notes: NoteAnalysis[], idx: number): string | null {
+	for (let i = idx; i >= 0; i--) {
+		const a = notes[i]?.analysis;
+		const cites = a?.segments.filter((s) => s.segment.body.length > 0) ?? [];
+		if (cites.length !== 1) return null;
+		const pins = pinpointTexts(cites[0]!);
+		if (pins.length > 0) return pins.join(', ');
+		if (cites[0]!.kind !== 'ibid') return null;
+	}
+	return null;
+}
+
 function pinpointTexts(c: CitationAnalysis): string[] {
 	return c.best?.elements.filter((e) => e.id === 'pinpoint' || e.id === 'pinpoint-more').map((e) => e.text.replace(/^[,\s]+/, '')) ?? [];
 }
@@ -160,11 +182,25 @@ export function analyseDocument(text: string, opts: AnalyseOptions = {}): Docume
 		a.segments.forEach((c, segIdx) => {
 			const from = base + c.segment.bodyFrom;
 			const to = base + c.segment.to;
+			if (c.kind === 'ibid' && idx > 0 && segIdx === 0 && prev) {
+				const pins = pinpointTexts(c);
+				const before = effectivePinpoint(notes, idx - 1);
+				if (pins.length > 0 && before !== null && pins.join(', ') === before) {
+					const pinEl = c.best!.elements.find((e) => e.id === 'pinpoint')!;
+					const pFrom = base + c.segment.bodyFrom + pinEl.from;
+					const pTo = base + c.segment.bodyFrom + pinEl.to;
+					push({
+						rule: 'ibid-same-pinpoint', severity: 'warning', from: pFrom, to: pTo,
+						message: 'The pinpoint is the same as in the preceding footnote: write "Ibid" alone.', ref: 'r 1.4.3',
+						fix: { from: pFrom, to: pTo, insert: '' },
+					});
+				}
+			}
 			if (c.kind === 'ibid') {
 				if (idx === 0) {
 					push({ rule: 'ibid-first', severity: 'error', from, to, message: '"Ibid" refers to the preceding footnote, but this is the first footnote.', ref: 'r 1.4.3' });
 				} else if (segIdx > 0) {
-					push({ rule: 'ibid-position', severity: 'error', from, to, message: '"Ibid" can only be used for the first source in a footnote.', ref: 'r 1.4.3' });
+					push({ rule: 'ibid-position', severity: 'warning', from, to, message: '"Ibid" refers to the preceding footnote: it is normally the first source in a footnote.', ref: 'r 1.4.3' });
 				} else if (prev && prev.segments.every((s) => s.kind === null)) {
 					// A warning: the preceding footnote may cite a kind of source the checker does not recognise.
 					push({ rule: 'ibid-no-source', severity: 'warning', from, to, message: '"Ibid" refers to the source in the preceding footnote, which does not look like a citation.', ref: 'r 1.4.3' });
@@ -190,7 +226,7 @@ export function analyseDocument(text: string, opts: AnalyseOptions = {}): Docume
 						if (words.length > 0 && !words.some((w) => stripMarks(targetContent).includes(w))) {
 							push({ rule: 'n-mismatch', severity: 'warning', from: nFrom, to: nTo, message: `Footnote ${target} does not seem to cite "${short!.replace(/[*_]/g, '')}".`, ref: 'r 1.4.1' });
 						}
-						if (target === na.note.number - 1 && prevSingle && segIdx === 0) {
+						if (target === na.note.number - 1 && prevSingle && segIdx === 0 && !(pinpointTexts(c).length === 0 && prevPinpoint(prev))) {
 							const pins = pinpointTexts(c);
 							const pin = pins.length > 0 ? ` ${pins.join(', ')}` : '';
 							push({
@@ -208,7 +244,7 @@ export function analyseDocument(text: string, opts: AnalyseOptions = {}): Docume
 				const earlier = firstCited.get(key);
 				if (earlier === undefined) {
 					firstCited.set(key, na.note.number);
-				} else if (earlier === na.note.number - 1 && prevSingle && segIdx === 0) {
+				} else if (earlier === na.note.number - 1 && prevSingle && segIdx === 0 && !(pinpointTexts(c).length === 0 && prevPinpoint(prev))) {
 					const pin = pinpointTexts(c).join(', ');
 					push({
 						rule: 'use-ibid', severity: 'warning', from, to,

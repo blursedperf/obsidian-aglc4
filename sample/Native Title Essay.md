@@ -11,7 +11,7 @@ Later cases considered extinguishment,[^4] and the role of the *Native Title Act
 
 The point remains contested.[^6] It was again considered in *Love*.[^7]
 
-[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1, 42 (Brennan J) ('*Mabo*').
+[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1, 42 (Brennan J) ('*Mabo*').
 [^2]: Ibid 29.
 [^3]: *Native Title Act 1993* (Cth) s 223 ('*Native Title Act*').
 [^4]: See, eg, *Western Australia v Ward* (2002) 213 CLR 1, [78]; *Wik Peoples v Queensland* (1996) 187 CLR 1.

@@ -87,6 +87,8 @@ export interface LayoutOptions {
 export interface Styles {
 	body: ParaStyle;
 	footnote: ParaStyle;
+	/** Long quotations (block quotes): AGLC4 sets them indented in a smaller font, without quotation marks. */
+	quote: ParaStyle;
 	/** Headings 1–6. */
 	headings: ParaStyle[];
 	title: ParaStyle;
@@ -104,6 +106,7 @@ export function styles(o: LayoutOptions): Styles {
 	});
 	return {
 		body: { size: o.fontSize, multiple: o.lineSpacing, before: 0, after: 6 },
+		quote: { size: o.fontSize - 1, multiple: o.lineSpacing, before: 0, after: 6 },
 		footnote: { size: o.footnoteSize, multiple: 1, before: 0, after: 0, keepLines: o.keepFootnotesTogether === true },
 		headings: o.headingScheme === 'aglc' ? [
 			// AGLC4, at body size:

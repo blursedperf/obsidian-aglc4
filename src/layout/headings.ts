@@ -1,7 +1,7 @@
 import type { Block, MdDocument } from '../export/markdown';
 
 /**
- * The AGLC4 heading hierarchy:
+ * The AGLC4 heading hierarchy (AGLC4 r 1.12.2):
  *
  *   I     Heading Level One     numeral upright; heading in large and small capitals; centred
  *   A     Heading Level Two     letter upright; heading italicised; centred

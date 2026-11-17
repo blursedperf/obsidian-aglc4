@@ -64,16 +64,20 @@ export const MNC_COURTS = new Set([
 ]);
 
 /** Report series arranged by volume number: the year goes in round brackets (AGLC4 r 2.2.1). */
+/**
+ * Report series arranged by volume number: the year goes in round brackets (AGLC4 r 2.2.1). Only series
+ * that have always been arranged this way are listed: some (eg NSWLR, VR, SASR, WAR) have changed, and the
+ * arrangement of the volume cited decides ("[1976] 2 NSWLR 72" but "(2002) 6 VR 317").
+ */
 export const VOLUME_SERIES = new Set([
-	'CLR', 'ALR', 'ALJR', 'FCR', 'FLR', 'NSWLR', 'A Crim R', 'IR', 'IPR', 'ACSR', 'ACLC', 'Fam LR',
-	'LGERA', 'MVR', 'ALD', 'AAR', 'ACTR', 'NTLR', 'NTR', 'SASR', 'WAR', 'Tas R', 'FMCAfam',
-	'US', 'S Ct', 'F 2d', 'F 3d', 'F 4th', 'DLR', 'SCR',
+	'CLR', 'ALR', 'ALJR', 'FCR', 'FLR', 'A Crim R', 'IR', 'IPR', 'ACSR', 'ACLC', 'Fam LR',
+	'LGERA', 'MVR', 'ALD', 'AAR', 'NTLR', 'Tas R', 'US', 'S Ct', 'F 2d', 'F 3d', 'F 4th', 'DLR', 'SCR',
 ]);
 
 /** Report series arranged by year: the year goes in square brackets (AGLC4 r 2.2.1). */
 export const YEAR_SERIES = new Set([
-	'AC', 'QB', 'KB', 'Ch', 'Fam', 'WLR', 'All ER', 'VR', 'Qd R', 'Tas SR', 'SR (NSW)', 'NZLR',
-	'Lloyd\'s Rep', 'BCLC', 'ICR', 'IRLR', 'EMLR', 'RPC', 'FSR', 'Cr App R', 'P', 'CLC',
+	'AC', 'QB', 'KB', 'Ch', 'Fam', 'WLR', 'All ER', 'Qd R', 'Tas SR', 'SR (NSW)', 'NZLR',
+	'Lloyd\'s Rep', 'BCLC', 'ICR', 'IRLR', 'EMLR', 'RPC', 'FSR', 'Cr App R', 'P', 'CLC', 'VLR', 'St R Qd', 'QSR',
 ]);
 
 export const MONTHS = [
@@ -90,8 +94,11 @@ export const SIGNALS = [
 export const LEG_PINPOINTS = [
 	// Unabbreviated forms are accepted so the citation is recognised; a lint rule asks for "s"/"ss".
 	'sections', 'section', 'secs.', 'sec.', 'secs', 'sec',
+	// AGLC4 r 3.1.4 and 3.4 (longest first, so "sub-ss" is preferred to "s")
+	'sub-paras', 'sub-para', 'sub-divs', 'sub-div', 'sub-cls', 'sub-cl', 'sub-regs', 'sub-reg', 'sub-rr', 'sub-r',
 	'sub-ss', 'sub-s', 'ss', 's', 'pts', 'pt', 'divs', 'div', 'subdivs', 'subdiv', 'schs', 'sch', 'regs', 'reg',
-	'rr', 'r', 'cls', 'cl', 'arts', 'art', 'items', 'item', 'paras', 'para', 'chs', 'ch', 'ord', 'O', 'form',
+	'rr', 'r', 'cls', 'cl', 'arts', 'art', 'items', 'item', 'paras', 'para', 'chs', 'ch', 'apps', 'app', 'ords', 'ord',
+	'annex', 'O', 'form',
 ];
 
 /** Escape a string for use inside a RegExp. */

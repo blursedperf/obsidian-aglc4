@@ -8,7 +8,7 @@ import {
 } from 'docx';
 import { type HeadingScheme, type TopLevel, applyHeadingScheme } from '../layout/headings';
 import { NUMBER_SPACE, PAGE, type ParaStyle, type Styles, styles, twips } from '../layout/metrics';
-import { type Block, type Inline, type MdDocument, parseMarkdown, smartenQuotes, walkBlocks } from './markdown';
+import { type Block, type Inline, type MdDocument, parseMarkdown, smartenQuotes, superscriptOrdinals, walkBlocks } from './markdown';
 
 export interface ExportOptions {
 	font: string;
@@ -47,6 +47,7 @@ interface Style {
 	heavy?: boolean;
 	struck?: boolean;
 	marked?: boolean;
+	sup?: boolean;
 	code?: boolean;
 }
 
@@ -64,6 +65,10 @@ export function footnoteWithSpace(blocks: Block[]): Block[] {
 /** Prepare a parsed note for export: heading numbers, and smart quotes everywhere, including footnotes. */
 export function prepare(doc: MdDocument, opts: ExportOptions): MdDocument {
 	applyHeadingScheme(doc, opts.headingScheme ?? 'plain', opts.aglcTopLevel ?? 'auto');
+	// Ordinal suffixes in superscript (r 1.10.1, 6.3.2), in the text and the footnotes.
+	const sup = (nodes: Inline[]) => { nodes.splice(0, nodes.length, ...superscriptOrdinals(nodes)); };
+	walkBlocks(doc.blocks, sup);
+	for (const blocks of doc.footnotes.values()) walkBlocks(blocks, sup);
 	if (opts.smartQuotes) {
 		walkBlocks(doc.blocks, (nodes) => { smartenQuotes(nodes); });
 		for (const blocks of doc.footnotes.values()) walkBlocks(blocks, (nodes) => { smartenQuotes(nodes); });
@@ -112,6 +117,9 @@ class DocxBuilder {
 				case 'mark':
 					out.push(...this.runs(n.c, { ...style, marked: true }, inFootnote));
 					break;
+				case 'sup':
+					out.push(...this.runs(n.c, { ...style, sup: true }, inFootnote));
+					break;
 				case 'link':
 					out.push(new ExternalHyperlink({ link: n.href, children: this.runs(n.c, style, inFootnote).filter((r): r is TextRun => r instanceof TextRun) }));
 					break;
@@ -147,6 +155,7 @@ class DocxBuilder {
 			bold: s.heavy || undefined,
 			strike: s.struck || undefined,
 			highlight: s.marked ? 'yellow' : undefined,
+			superScript: s.sup || undefined,
 			font: s.code ? 'Courier New' : undefined,
 		});
 	}
@@ -166,6 +175,9 @@ class DocxBuilder {
 		this.footnotes[id] = { children: children.filter((p): p is Paragraph => p instanceof Paragraph) };
 		return new FootnoteReferenceRun(id);
 	}
+
+	/** Depth of block quotations being built. */
+	private quoteDepth = 0;
 
 	/** Set while building footnote paragraphs that must stay with the next one. */
 	private keepNext = false;
@@ -192,15 +204,18 @@ class DocxBuilder {
 				case 'para':
 					out.push(this.para({
 						// Footnote paragraphs must name the footnote style, or Word gives them the body style.
-						style: inFootnote ? 'FootnoteText' : undefined,
+						style: inFootnote ? 'FootnoteText' : this.quoteDepth > 0 ? 'AglcQuote' : undefined,
 						children: this.runs(b.c, {}, inFootnote),
 						indent: indent ? { left: indent } : undefined,
 					}));
 					break;
-				case 'quote':
-					// AGLC4 r 1.5.2: long quotations are indented and take no quotation marks.
+				case 'quote': {
+					// AGLC4: long quotations are indented, in a smaller font, without quotation marks.
+					this.quoteDepth++;
 					for (const p of this.paragraphs(b.blocks, inFootnote, indent + 720)) out.push(p);
+					this.quoteDepth--;
 					break;
+				}
 				case 'code':
 					out.push(this.para({
 						indent: { left: indent + 360 },
@@ -281,6 +296,14 @@ class DocxBuilder {
 					heading1: h1, heading2: h2, heading3: h3, heading4: h4, heading5: h5, heading6: h6,
 					title: style(st.title),
 				},
+				paragraphStyles: [{
+					id: 'AglcQuote',
+					name: 'Quote (AGLC4)',
+					basedOn: 'Normal',
+					next: 'Normal',
+					run: { font: this.opts.font, size: pt(st.quote.size) },
+					paragraph: { spacing: { line: Math.round(240 * st.quote.multiple), after: twips(st.quote.after) } },
+				}],
 			},
 			numbering: {
 				config: [{

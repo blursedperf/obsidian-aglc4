@@ -16,7 +16,7 @@ The High Court recognised native title.[^1] It later considered extinguishment.^
 - point one
 - point two
 
-[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1, 30; see Jane Smith, 'It's a Title' (2004) 28(1) *Melbourne University Law Review* 1 <https://example.org>.
+[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1, 30; see Jane Smith, 'It's a Title' (2004) 28(1) *Melbourne University Law Review* 1 <https://example.org>.
 `;
 
 describe('markdown inline parsing', () => {
@@ -47,7 +47,7 @@ describe('Word export', () => {
 		const footnotes = await zip.file('word/footnotes.xml')!.async('string');
 		const document = await zip.file('word/document.xml')!.async('string');
 		expect(document).toContain('w:footnoteReference');
-		expect(footnotes).toContain('Mabo v Queensland (No 2)');
+		expect(footnotes).toContain('Mabo v Queensland [No 2]');
 		expect(footnotes).toContain('Western Australia v Ward');
 		// Case name is italic in the footnote.
 		expect(footnotes).toMatch(/<w:i\/>[\s\S]*?Mabo v Queensland/);
@@ -56,8 +56,11 @@ describe('Word export', () => {
 		expect(document).not.toContain('[^1]');
 		// Each footnote's number is followed by a space, as Word inserts it.
 		expect((footnotes.match(/<w:footnoteRef\/><\/w:r><w:r><w:t xml:space="preserve"> <\/w:t><\/w:r>/g) ?? []).length).toBe(2);
-		// Footnotes are kept whole on one page by default.
 		const styles = await zip.file('word/styles.xml')!.async('string');
+		// Long quotations: indented and a point smaller than the body (AGLC4).
+		expect(/<w:style [^>]*w:styleId="AglcQuote"[\s\S]*?<\/w:style>/.exec(styles)?.[0] ?? '').toContain('<w:sz w:val="22"/>');
+		expect(document).toContain('<w:pStyle w:val="AglcQuote"/>');
+		// Footnotes are kept whole on one page by default.
 		expect(/<w:style [^>]*w:styleId="FootnoteText"[\s\S]*?<\/w:style>/.exec(styles)![0]).toContain('<w:keepLines/>');
 				// Footnotes use the 10pt single-spaced footnote style, not the body style.
 		expect((footnotes.match(/<w:pStyle w:val="FootnoteText"\/>/g) ?? []).length).toBe(2);
@@ -69,7 +72,7 @@ describe('HTML export', () => {
 		const { html, footnotes } = exportHtml(NOTE, { ...DEFAULT_EXPORT, title: 'Test' });
 		expect(footnotes).toBe(2);
 		expect(html.indexOf('id="fn1"')).toBeLessThan(html.indexOf('id="fn2"'));
-		expect(html).toContain('<em>Mabo v Queensland (No 2)</em>');
+		expect(html).toContain('<em>Mabo v Queensland [No 2]</em>');
 		expect(html).toContain('&lt;<a href="https://example.org">https://example.org</a>&gt;');
 	});
 });

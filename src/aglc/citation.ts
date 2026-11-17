@@ -15,6 +15,8 @@ export interface Segment {
 	/** Offset (within the footnote) where the citation proper starts, after any signal. */
 	bodyFrom: number;
 	body: string;
+	/** What separated this citation from the one before: a semicolon, a full stop (a new sentence), or nothing. */
+	sep: ';' | '.' | null;
 	/** False for the last citation of a footnote that has not been closed with a full stop yet. */
 	finished: boolean;
 }
@@ -47,11 +49,13 @@ export function splitSegments(text: string): Segment[] {
 	const closing = /[.?!](?:['’"”])?$/.exec(trimmedEnd);
 	const closed = closing !== null;
 	const body = closed && closing[0].length === 1 ? trimmedEnd.slice(0, -1) : trimmedEnd;
-	const parts: { from: number; to: number }[] = [];
+	const parts: { from: number; to: number; sep: ';' | '.' | null }[] = [];
+	const quoted = quotedRanges(body);
 	let depth = 0;
 	let inAngle = false;
 	let italic: string | null = null;
 	let start = 0;
+	let sep: ';' | '.' | null = null;
 	for (let i = 0; i < body.length; i++) {
 		const c = body[i];
 		if (c === '<' && /^<https?:/.test(body.slice(i, i + 7))) inAngle = true;
@@ -62,11 +66,17 @@ export function splitSegments(text: string): Segment[] {
 		else if (c === '(' || c === '[') depth++;
 		else if ((c === ')' || c === ']') && depth > 0) depth--;
 		else if (c === ';' && depth === 0 && italic === null) {
-			parts.push({ from: start, to: i });
+			parts.push({ from: start, to: i, sep });
 			start = i + 1;
+			sep = ';';
+		} else if (c === '.' && depth === 0 && italic === null && sentenceBreak(body, i, quoted)) {
+			// A new sentence, eg one starting with a different signal (r 1.1.3): "… 190 CLR 1. Cf R v …".
+			parts.push({ from: start, to: i, sep });
+			start = i + 1;
+			sep = '.';
 		}
 	}
-	parts.push({ from: start, to: body.length });
+	parts.push({ from: start, to: body.length, sep });
 	return parts.map((p, idx) => {
 		let from = p.from;
 		while (from < p.to && /\s/.test(body[from]!)) from++;
@@ -81,9 +91,29 @@ export function splitSegments(text: string): Segment[] {
 			signal,
 			bodyFrom,
 			body: body.slice(bodyFrom, p.to),
+			sep: p.sep,
 			finished: idx < parts.length - 1 || closed,
 		};
 	});
+}
+
+/** Ranges inside quotation marks, where a full stop does not end the footnote's sentence. */
+function quotedRanges(text: string): [number, number][] {
+	const out: [number, number][] = [];
+	const re = /(^|[\s(])['‘“"](.+?)['’”"](?=[\s,.;:)?!]|$)/g;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(text))) out.push([m.index + m[1]!.length, m.index + m[0].length]);
+	return out;
+}
+
+/** Abbreviations and initials after which a full stop does not end a sentence (should AGLC4's rule against them be broken). */
+const NO_BREAK_BEFORE = /(?:^|\s)(?:[A-Z]|Pty|Co|Inc|No|Nos|Dr|Mr|Mrs|Ms|Prof|Jr|Sr|St|vol|Vol|ch|pt|ed|eds|v|cf|eg|ie|al|e\.g|i\.e|op cit|loc cit)$/;
+
+/** Whether the full stop at `i` ends a sentence: followed by a space and a capital, outside quotations. */
+function sentenceBreak(text: string, i: number, quoted: [number, number][]): boolean {
+	if (!/^\.\s+(?:[*_]?[A-Z‘'(])/.test(text.slice(i))) return false;
+	if (NO_BREAK_BEFORE.test(text.slice(0, i))) return false;
+	return !quoted.some(([a, b]) => i > a && i < b);
 }
 
 /** All matches for a citation body, best first. */
@@ -200,6 +230,7 @@ export function analyseFootnote(text: string, opts: { showInfo?: boolean; inProg
 	const closed = /[.?!](?:['’"”])?$/.test(trimmed);
 	const segments = segs.map((s) => analyseSegment(s, opts));
 	const issues = segments.flatMap((s) => s.issues);
+	issues.push(...acrossSegments(text, segments));
 	if (!closed && trimmed.length > 0 && !opts.inProgress) {
 		issues.push({
 			rule: 'closing-stop', severity: 'error', from: Math.max(0, trimmed.length - 1), to: trimmed.length,
@@ -208,6 +239,61 @@ export function analyseFootnote(text: string, opts: { showInfo?: boolean; inProg
 		});
 	}
 	return { text, segments, issues, closed };
+}
+
+const JUR_ORDER = ['Cth', 'ACT', 'NSW', 'NT', 'Qld', 'SA', 'Tas', 'Vic', 'WA'];
+
+/** Rules about how the citations of one footnote relate to each other. */
+function acrossSegments(text: string, segments: CitationAnalysis[]): Issue[] {
+	const out: Issue[] = [];
+	segments.forEach((c, i) => {
+		const seg = c.segment;
+		const prev = segments[i - 1];
+		// A different signal starts a new sentence, not a semicolon (r 1.1.3, 1.2).
+		if (seg.signal && seg.sep === ';') {
+			const semi = text.lastIndexOf(';', seg.from);
+			const signal = seg.signal.charAt(0).toUpperCase() + seg.signal.slice(1);
+			out.push({
+				rule: 'signal-new-sentence', severity: 'error', from: semi, to: seg.from + seg.signal.length,
+				message: 'A source with a different introductory signal starts a new sentence, not after a semicolon.', ref: 'r 1.1.3',
+				fix: { from: semi, to: seg.from + seg.signal.length, insert: `. ${signal}` },
+			});
+		} else if (seg.signal && /^[a-z]/.test(seg.signal) && (seg.sep === '.' || (seg.sep === null && !/:\s*$/.test(text.slice(0, seg.from))))) {
+			// At the start of a sentence a signal is capitalised ("See", "Cf"); after a colon it is not.
+			out.push({
+				rule: 'signal-case', severity: 'error', from: seg.from, to: seg.from + seg.signal.length,
+				message: 'An introductory signal starting a sentence is capitalised.', ref: 'r 1.2',
+				fix: { from: seg.from, to: seg.from + 1, insert: seg.signal.charAt(0).toUpperCase() },
+			});
+		}
+		// Parallel citations are not used (r 2.2.7): "(1999) 198 CLR 180; 164 ALR 606; [1999] HCA 36". A
+		// parallel report may have no year ("164 ALR 606"), so it is not recognised as a case on its own.
+		const reportOnly = c.kind === null && /^\d+\s[A-Z][A-Za-z ]*\s\d+$/.test(seg.body);
+		const nameless = c.kind?.startsWith('case') && !c.best?.elements.some((e) => e.id === 'name');
+		const afterCase = segments.slice(0, i).some((p) => p.kind?.startsWith('case'));
+		if (prev && seg.sep === ';' && afterCase && (nameless || reportOnly)) {
+			out.push({
+				rule: 'parallel-citation', severity: 'error', from: seg.from, to: seg.to,
+				message: 'Do not give parallel citations: cite only the most authoritative report.', ref: 'r 2.2.7',
+			});
+		}
+		// Parallel statutes: the Commonwealth first, then the states and territories alphabetically (r 3.3).
+		if (prev && c.kind === 'legislation' && prev.kind === 'legislation') {
+			const jur = (a: CitationAnalysis) => {
+				const el = a.best?.elements.find((e) => e.id === 'jurisdiction');
+				return el ? JUR_ORDER.indexOf(el.text.trim().slice(1, -1)) : -1;
+			};
+			const a = jur(prev);
+			const b = jur(c);
+			if (a >= 0 && b >= 0 && b < a) {
+				out.push({
+					rule: 'leg-order', severity: 'warning', from: seg.from, to: seg.to,
+					message: 'Cite parallel Acts with the Commonwealth first, then the states and territories in alphabetical order.', ref: 'r 3.3',
+				});
+			}
+		}
+	});
+	return out;
 }
 
 // ---------------------------------------------------------------------------------------------------------

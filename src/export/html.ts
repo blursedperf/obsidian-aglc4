@@ -25,6 +25,7 @@ class HtmlBuilder {
 				case 'strong': return `<strong>${this.inline(n.c, inFootnote)}</strong>`;
 				case 'strike': return `<s>${this.inline(n.c, inFootnote)}</s>`;
 				case 'mark': return `<mark>${this.inline(n.c, inFootnote)}</mark>`;
+				case 'sup': return `<sup>${this.inline(n.c, inFootnote)}</sup>`;
 				case 'link': return `<a href="${esc(n.href)}">${this.inline(n.c, inFootnote)}</a>`;
 				case 'url': return `&lt;<a href="${esc(n.href)}">${esc(n.href)}</a>&gt;`;
 				case 'fnref': {
@@ -82,7 +83,7 @@ export function exportHtml(markdown: string, opts: ExportOptions): { html: strin
 	const css = `
 body { font-family: "${opts.font}", serif; font-size: ${opts.fontSize}pt; line-height: ${opts.lineSpacing}; max-width: 42em; margin: 2em auto; padding: 0 1em; }
 h1, h2, h3 { line-height: 1.2; }
-blockquote { margin: 0 2.5em; }
+blockquote { margin: 0 2.5em; font-size: ${opts.fontSize - 1}pt; }
 sup.fnref a { text-decoration: none; }
 section.footnotes { font-size: ${opts.footnoteSize}pt; line-height: 1.2; border-top: 1px solid #999; margin-top: 3em; padding-top: 1em; }
 section.footnotes p { margin: 0 0 .4em; }

@@ -20,7 +20,7 @@ The High Court rejected terra nullius.[^1] It was applied again.[^2] See the *Na
 1. numbered one
 2. numbered two
 
-[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1, 42 (Brennan J).
+[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1, 42 (Brennan J).
 [^2]: Ibid 58.
 [^3]: *Love v Commonwealth* [2020] HCA 3, [81]; Jane Smith, 'Title of Page' (Web Page, 1 May 2020) <https://example.org/a_b>.
 `;
@@ -35,7 +35,7 @@ describe('Word import', () => {
 		expect(r.markdown).toContain('> A long quotation, indented and without quotation marks.');
 		expect(r.markdown).toContain('- first point\n- second point with **bold**');
 		expect(r.markdown).toContain('1. numbered one\n1. numbered two');
-		expect(r.markdown).toContain('[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1, 42 (Brennan J).');
+		expect(r.markdown).toContain('[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1, 42 (Brennan J).');
 		expect(r.markdown).toContain('[^2]: Ibid 58.');
 		expect(r.markdown).toContain('[^3]: *Love v Commonwealth* [2020] HCA 3, [81]; Jane Smith, \'Title of Page\' (Web Page, 1 May 2020) <https://example.org/a_b>.');
 		// The imported note checks clean.
@@ -55,7 +55,7 @@ describe('Word import', () => {
 <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:rPr><w:b/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:rPr><w:i/></w:rPr></w:style>
 </w:styles>`;
-		const endnotes = `<?xml version="1.0"?><w:endnotes ${w}><w:endnote w:type="separator" w:id="0"><w:p/></w:endnote><w:endnote w:id="2"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t>Mabo v Queensland (No 2)</w:t></w:r><w:r><w:t xml:space="preserve"> (1992) 175 CLR 1.</w:t></w:r></w:p></w:endnote></w:endnotes>`;
+		const endnotes = `<?xml version="1.0"?><w:endnotes ${w}><w:endnote w:type="separator" w:id="0"><w:p/></w:endnote><w:endnote w:id="2"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t>Mabo v Queensland [No 2]</w:t></w:r><w:r><w:t xml:space="preserve"> (1992) 175 CLR 1.</w:t></w:r></w:p></w:endnote></w:endnotes>`;
 		const rels = `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.hcourt.gov.au/" TargetMode="External"/></Relationships>`;
 		const zip = zipSync({
 			'word/document.xml': strToU8(doc),
@@ -73,7 +73,7 @@ describe('Word import', () => {
 			'',
 			'Cited *Mabo* here.[^1] See [the court](https://www.hcourt.gov.au/) and 5 \\* 3 = 15 with snake_case.',
 			'',
-			'[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1.',
+			'[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1.',
 			'',
 		].join('\n'));
 		expect(r.numberedHeadings).toBe(2);

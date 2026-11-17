@@ -74,6 +74,7 @@ class Builder {
 				case 'strong': this.styled(n.c, parent, { ...run, bold: true }, inFootnote); break;
 				case 'strike': this.inline(n.c, parent.createEl('s'), run, inFootnote); break;
 				case 'mark': this.inline(n.c, parent.createEl('mark'), run, inFootnote); break;
+				case 'sup': this.inline(n.c, parent.createEl('sup'), run, inFootnote); break;
 				case 'link': this.inline(n.c, parent.createSpan({ cls: 'aglc-pv-link' }), run, inFootnote); break;
 				case 'url': parent.appendText(`<${n.href}>`); break;
 				case 'fnref': {
@@ -118,6 +119,8 @@ class Builder {
 		this.notes.push({ el, style, lh: lineHeight(style, this.opts.font) });
 	}
 
+	private quoteDepth = 0;
+
 	build(blocks: Block[], indent = 0) {
 		for (const b of blocks) {
 			switch (b.t) {
@@ -132,13 +135,16 @@ class Builder {
 					break;
 				}
 				case 'para': {
-					const el = this.para(this.st.body, indent);
+					const style = this.quoteDepth > 0 ? this.st.quote : this.st.body;
+					const el = this.para(style, indent);
 					this.inline(b.c, el, { italic: false, bold: false }, false);
-					this.add(el, this.st.body);
+					this.add(el, style);
 					break;
 				}
 				case 'quote':
+					this.quoteDepth++;
 					this.build(b.blocks, indent + this.st.indent);
+					this.quoteDepth--;
 					break;
 				case 'code': {
 					const el = this.para(this.st.body, indent + this.st.hanging);
