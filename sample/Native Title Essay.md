@@ -15,6 +15,6 @@ The point remains contested.[^6] It was again considered in *Love*.[^7]
 [^2]: Ibid 29.
 [^3]: *Native Title Act 1993* (Cth) s 223 ('*Native Title Act*').
 [^4]: See, eg, *Western Australia v Ward* (2002) 213 CLR 1, [78]; *Wik Peoples v Queensland* (1996) 187 CLR 1.
-[^5]: See generally Lisa Strelein, *Compromised Jurisprudence: Native Title Cases since Mabo* (Aboriginal Studies Press, 2nd ed, 2009) 45; Richard Bartlett, 'The Proprietary Nature of Native Title' (1998) 6(2) Australian Property Law Journal 77, 80.
+[^5]: See generally Lisa Strelein, *Compromised Jurisprudence: Native Title Cases since Mabo* (Aboriginal Studies Press, 2nd ed, 2009) 45; Richard Bartlett, 'The Proprietary Nature of Native Title' (1998) 6(2) *Australian Property Law Journal* 77, 80.
 [^6]: This point was not argued before the trial judge, and the Full Court declined to consider it.
 [^7]: *Love v Commonwealth* [2020] HCA 3, [81]; *Mabo* (n 1) 42.

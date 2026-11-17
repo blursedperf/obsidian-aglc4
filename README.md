@@ -47,7 +47,7 @@ Each footnote is split into its sources (separated by `;`), each source is match
 | Unreported cases without MNC | (court, judge, date) |
 | Legislation (ch 3) | italic title with year, abbreviated jurisdiction, pinpoints such as `s 5(1)`, `ss 180–4`, `pt 2 div 3`, `sch 1 item 3`, `reg 7.1.04`, short title; the *Australian Constitution* and short titles |
 | Explanatory memoranda (ch 3) | document, Bill (not italicised), jurisdiction, page and paragraph pinpoint |
-| Journal articles (ch 5) | author, 'title', year, volume(issue), journal in full (not italic or abbreviated), starting page or "(forthcoming)", pinpoints |
+| Journal articles (ch 5) | author, 'title', year, volume(issue), full journal title in italics (no leading "The", "and" not "&", not abbreviated, subtitle omitted), starting page or "(forthcoming)", pinpoints |
 | Books and reports (ch 6, 7) | author or editor, italic title, (publisher, edition, year) or (report details, date), pinpoint, `<URL>`, short title |
 | Chapters in edited books (ch 6) | author, 'title', in editor (ed), italic book title, publication, starting page |
 | Newspaper articles (ch 7) | author, 'headline', italic newspaper, (place, date), page or URL |

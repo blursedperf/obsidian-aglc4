@@ -608,13 +608,50 @@ const TREATY: SourceSpec = {
 	],
 };
 
+/** Abbreviated words in a journal title: "L", "J", "Rev", "Univ" … ("Australian L J", "Melb U L Rev"). */
+const JOURNAL_ABBREVIATION = /(?:^|\s)(?:[A-Z]{1,2}|Rev|Jnl|Jrnl|Univ|Aust|Austl|Int'?l|Comp|Crim|Const|Envtl?|Fam|Hum|Admin|Prop|Tech|Qtly|Bull|Ann|Soc|Pol|Stud)\.?(?=\s|$)/;
+
+/**
+ * AGLC4 journal titles: the full title in italics, without a leading "The", with "and" rather than "&",
+ * not abbreviated, and without a subtitle unless it is needed to identify the journal.
+ */
+function journalChecks(m: ElementMatch, ctx: CheckContext): Issue[] {
+	const out: Issue[] = [];
+	const at = bodyStart(m);
+	const raw = m.text.slice(at - m.from);
+	const italic = isItalic(raw);
+	const from = italic ? at + 1 : at;
+	const to = italic ? m.to - 1 : m.to;
+	const name = ctx.text.slice(from, to);
+	if (!italic) {
+		out.push(issue(m, 'journal-italics', 'error', 'Journal titles are italicised.', 'ch 5', { from: at, to: m.to, insert: `*${raw}*` }, at, m.to));
+	}
+	if (!/[a-z]/.test(name) || JOURNAL_ABBREVIATION.test(name)) {
+		out.push(issue(m, 'journal-abbreviation', 'warning', 'Give the journal\'s full title, not an abbreviation.', 'ch 5', undefined, from, to));
+		return out;
+	}
+	if (/^The\s/.test(name)) {
+		out.push(issue(m, 'journal-the', 'error', 'Leave out "The" at the start of a journal title.', 'ch 5', { from, to: from + 4, insert: '' }, from, from + 3));
+	}
+	const amp = name.indexOf('&');
+	if (amp >= 0) {
+		out.push(issue(m, 'journal-ampersand', 'warning', 'Write "and", not "&", in a journal title.', 'ch 5', { from: from + amp, to: from + amp + 1, insert: 'and' }, from + amp, from + amp + 1));
+	}
+	const colon = name.indexOf(':');
+	if (colon > 0) {
+		out.push(issue(m, 'journal-subtitle', 'info', 'Omit the journal\'s subtitle, unless it is needed to identify the journal.', 'ch 5', { from: from + colon, to, insert: '' }, from + colon, to));
+	}
+	if (out.length === 0) out.push(...titleCaseIssue(m, from, to, ctx));
+	return out;
+}
+
 const JOURNAL: SourceSpec = {
 	kind: 'journal',
 	label: 'Journal article',
 	ref: 'ch 5',
 	claimAfter: 'year',
-	example: 'Jane Smith, \'The Title of the Article\' (2004) 28(1) Melbourne University Law Review 1, 12',
-	start: '${Author}, \'${Title}\' (${Year}) ${Volume}(${Issue}) ${Journal} ${1}',
+	example: 'Jane Smith, \'The Title of the Article\' (2004) 28(1) *Melbourne University Law Review* 1, 12',
+	start: '${Author}, \'${Title}\' (${Year}) ${Volume}(${Issue}) *${Journal Title}* ${1}',
 	elements: [
 		author(),
 		quotedTitle('title', 'Article title', '\\s[[(]\\d'),
@@ -630,19 +667,10 @@ const JOURNAL: SourceSpec = {
 		{
 			id: 'journal',
 			label: 'Journal',
-			hint: 'Full journal name, not italicised (AGLC4 ch 5)',
-			insert: ' ${Journal Name}',
+			hint: 'Full title of the journal, in italics, without a leading "The" (AGLC4 ch 5)',
+			insert: ' *${Journal Title}*',
 			re: S('\\s(?:\\*[^*\\n]+\\*|_[^_\\n]+_|[A-Z][A-Za-z&\'’ .:()-]*?)(?=\\s\\d|\\s\\(forthcoming\\)|$)'),
-			check: (m, ctx) => {
-				const name = m.text.trim();
-				if (isItalic(name)) {
-					return [issue(m, 'journal-italics', 'error', 'Journal names are not italicised.', 'ch 5', { from: bodyStart(m), to: m.to, insert: stripItalic(name) }, bodyStart(m), m.to)];
-				}
-				if (!/[a-z]/.test(name)) {
-					return [issue(m, 'journal-abbreviation', 'warning', 'Give the journal\'s name in full, not an abbreviation.', 'ch 5', undefined, bodyStart(m), m.to)];
-				}
-				return titleCaseIssue(m, bodyStart(m), m.to, ctx);
-			},
+			check: (m, ctx) => journalChecks(m, ctx),
 		},
 		{ ...pageStart, hint: 'First page of the article, or (forthcoming)', re: S('\\s(?:\\d+|\\(forthcoming\\))') },
 		pinpoints,

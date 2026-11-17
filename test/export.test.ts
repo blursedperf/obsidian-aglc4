@@ -16,7 +16,7 @@ The High Court recognised native title.[^1] It later considered extinguishment.^
 - point one
 - point two
 
-[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1, 30; see Jane Smith, 'It's a Title' (2004) 28(1) Melbourne University Law Review 1 <https://example.org>.
+[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1, 30; see Jane Smith, 'It's a Title' (2004) 28(1) *Melbourne University Law Review* 1 <https://example.org>.
 `;
 
 describe('markdown inline parsing', () => {

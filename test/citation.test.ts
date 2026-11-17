@@ -16,7 +16,7 @@ describe('recognises correct AGLC4 citations without issues', () => {
 		['*R v Smith* (Supreme Court of Victoria, Smith J, 12 March 1990).', 'case-unreported'],
 		['*Native Title Act 1993* (Cth) s 223.', 'legislation'],
 		['*Corporations Act 2001* (Cth) ss 180–4, sch 2.', 'legislation'],
-		['Jane Smith, \'The Title of the Article\' (2004) 28(1) Melbourne University Law Review 1, 12.', 'journal'],
+		['Jane Smith, \'The Title of the Article\' (2004) 28(1) *Melbourne University Law Review* 1, 12.', 'journal'],
 		['Jane Smith, \'Chapter Title\' in Ali Khan (ed), *Book Title* (Federation Press, 2nd ed, 2015) 10, 15.', 'chapter'],
 		['Jane Smith, *Principles of Australian Law* (Federation Press, 3rd ed, 2018) 45.', 'book'],
 		['Jane Smith, \'Headline of Article\', *The Age* (Melbourne, 5 May 2020) 3.', 'newspaper'],
@@ -88,8 +88,9 @@ describe('flags incorrect and incomplete citations', () => {
 	it('year outside italics', () => {
 		expect(rules('*Native Title Act* 1993 (Cth).')).toContain('leg-year-italics');
 	});
-	it('italicised journal name', () => {
-		expect(rules('Jane Smith, \'Title\' (2004) 28(1) *Melbourne University Law Review* 1.')).toContain('journal-italics');
+	it('journal name not italicised', () => {
+		expect(rules('Jane Smith, \'Title\' (2004) 28(1) Melbourne University Law Review 1.')).toContain('journal-italics');
+		expect(rules('Jane Smith, \'Title\' (2004) 28(1) *Melbourne University Law Review* 1.')).not.toContain('journal-italics');
 	});
 	it('missing closing full stop', () => {
 		expect(rules('*Mabo v Queensland (No 2)* (1992) 175 CLR 1')).toContain('closing-stop');
@@ -104,7 +105,7 @@ describe('flags incorrect and incomplete citations', () => {
 		expect(rules('Jane Smith, \'Title of Page\' (Web Page, 1 May 2020) https://example.org/page.')).toContain('url-brackets');
 	});
 	it('double-quoted article title', () => {
-		expect(rules('Jane Smith, "The Title" (2004) 28 Melbourne University Law Review 1.')).toContain('title-quotes');
+		expect(rules('Jane Smith, "The Title" (2004) 28 *Melbourne University Law Review* 1.')).toContain('title-quotes');
 	});
 });
 
@@ -124,7 +125,7 @@ describe('suggests the next element', () => {
 		expect(next('Jane Smith')).toBe('Article title');
 		expect(next('Jane Smith, \'The Title\'')).toBe('Year');
 		expect(next('Jane Smith, \'The Title\' (2004) 28(1)')).toBe('Journal');
-		expect(next('Jane Smith, \'The Title\' (2004) 28(1) Melbourne University Law Review')).toBe('Starting page');
+		expect(next('Jane Smith, \'The Title\' (2004) 28(1) *Melbourne University Law Review*')).toBe('Starting page');
 	});
 	it('book', () => {
 		expect(next('Jane Smith, *Principles*')).toBe('Publication details');
