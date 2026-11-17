@@ -1,7 +1,7 @@
 {
 	"id": "aglc-citations",
 	"name": "AGLC4 Citations",
-	"version": "1.3.2",
+	"version": "1.3.3",
 	"minAppVersion": "1.7.2",
 	"description": "Write legal citations to the AGLC4 standard: footnotes kept at the bottom of the note, next-element suggestions, live underlining of incorrect or incomplete citations, and Word export with real footnotes.",
 	"author": "blursedperf",
