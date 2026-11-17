@@ -107,7 +107,11 @@ class Builder {
 		const paras = flattenParas(content);
 		for (const p of paras.length > 0 ? paras : [[]]) {
 			const pe = el.appendChild(this.para(style));
-			if (first) pe.createEl('sup', { text: String(index + 1) });
+			if (first) {
+				// The footnote number, then a space before the text, as in Word.
+				pe.createEl('sup', { text: String(index + 1) });
+				pe.appendText(' ');
+			}
 			first = false;
 			this.inline(p, pe, { italic: false, bold: false }, true);
 		}

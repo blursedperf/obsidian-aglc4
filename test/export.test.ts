@@ -54,6 +54,8 @@ describe('Word export', () => {
 		expect(footnotes).toContain('‘It’s a Title’');
 		expect(footnotes).toContain('&lt;');
 		expect(document).not.toContain('[^1]');
+		// Each footnote's number is followed by a space, as Word inserts it.
+		expect((footnotes.match(/<w:footnoteRef\/><\/w:r><w:r><w:t xml:space="preserve"> <\/w:t><\/w:r>/g) ?? []).length).toBe(2);
 		// Footnotes are kept whole on one page by default.
 		const styles = await zip.file('word/styles.xml')!.async('string');
 		expect(/<w:style [^>]*w:styleId="FootnoteText"[\s\S]*?<\/w:style>/.exec(styles)![0]).toContain('<w:keepLines/>');

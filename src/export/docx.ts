@@ -52,6 +52,15 @@ interface Style {
 
 const HEADINGS = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3, HeadingLevel.HEADING_4, HeadingLevel.HEADING_5, HeadingLevel.HEADING_6];
 
+/** Footnote content starting with the space that follows the footnote number, as Word inserts it. */
+export function footnoteWithSpace(blocks: Block[]): Block[] {
+	const [first, ...rest] = blocks;
+	if (!first || first.t !== 'para') return blocks;
+	const lead = first.c[0];
+	if (lead && lead.t === 'text' && lead.v.startsWith(' ')) return blocks;
+	return [{ ...first, c: [{ t: 'text', v: ' ' }, ...first.c] }, ...rest];
+}
+
 /** Prepare a parsed note for export: heading numbers, and smart quotes everywhere, including footnotes. */
 export function prepare(doc: MdDocument, opts: ExportOptions): MdDocument {
 	applyHeadingScheme(doc, opts.headingScheme ?? 'plain', opts.aglcTopLevel ?? 'auto');
@@ -142,8 +151,10 @@ class DocxBuilder {
 		});
 	}
 
-	private footnote(blocks: Block[]): FootnoteReferenceRun {
+	private footnote(content: Block[]): FootnoteReferenceRun {
 		const id = this.nextId++;
+		// Word follows the footnote number with a space; Word adds the number itself before the text.
+		const blocks = footnoteWithSpace(content);
 		// To keep a footnote of several paragraphs together, each but the last is kept with the next. The
 		// last is not, or every footnote would be chained to the one after it.
 		const keep = this.opts.keepFootnotesTogether === true;
