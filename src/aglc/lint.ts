@@ -73,7 +73,8 @@ const RULES: LintRule[] = [
 	},
 	{
 		rule: 'section-word',
-		re: /(?:^|[\s(])(?<target>(?:[Ss]ections?|[Ss]ecs?\.?|s\.|ss\.)\s?)(?=\d)/g,
+		// Not at the start of a sentence, where AGLC4 writes "Section" in full.
+		re: /(?:[^.!?\s]\s|[(])(?<target>(?:[Ss]ections?|[Ss]ecs?\.?|s\.|ss\.)\s?)(?=\d)/g,
 		severity: 'warning',
 		message: 'Abbreviate sections as "s" (one) or "ss" (several), without a full stop.',
 		ref: 'r 3.1.4',
@@ -143,7 +144,8 @@ const RULES: LintRule[] = [
 	},
 	{
 		rule: 'space-before-punct',
-		re: /\S(?<target> +)(?=[,;.](?:\s|$))/g,
+		// Not the spaces of a spaced ellipsis (". . .").
+		re: /[^\s.](?<target> +)(?=[,;.](?:\s|$))(?![,;.]\s\.)/g,
 		severity: 'warning',
 		message: 'No space before punctuation.',
 		fix: () => '',
@@ -167,10 +169,23 @@ function protectedRanges(text: string): [number, number][] {
 	return out;
 }
 
+/**
+ * Ranges inside single-quoted titles and quotations ('…', ‘…’), where double quotation marks are correct
+ * for a quotation within the quotation.
+ */
+function singleQuoted(text: string): [number, number][] {
+	const out: [number, number][] = [];
+	const re = /(^|[\s(])['‘](.+?)['’](?=[\s,.;:)?!]|$)/g;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(text))) out.push([m.index + m[1]!.length, m.index + m[0].length]);
+	return out;
+}
+
 /** Apply the text-level rules to footnote text. Offsets are relative to `text`. */
 export function lintFootnote(text: string, disabled: ReadonlySet<string> = new Set()): Issue[] {
 	const out: Issue[] = [];
 	const prot = protectedRanges(text);
+	const quoted = singleQuoted(text);
 	const trimmedLength = text.replace(/\s+$/, '').length;
 	for (const r of RULES) {
 		if (disabled.has(r.rule)) continue;
@@ -182,6 +197,7 @@ export function lintFootnote(text: string, disabled: ReadonlySet<string> = new S
 			const from = target !== undefined ? m.index + m[0].lastIndexOf(target) : m.index;
 			const to = from + (target ?? m[0]).length;
 			if (prot.some(([a, b]) => from >= a && from < b)) continue;
+			if (r.rule === 'double-quotes' && quoted.some(([a, b]) => from > a && from < b - 1)) continue;
 			// A full stop that closes the footnote is not an abbreviation stop.
 			if (r.rule === 'abbrev-stops' && to >= trimmedLength) continue;
 			out.push({

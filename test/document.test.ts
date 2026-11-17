@@ -130,3 +130,31 @@ describe('returning from a footnote', () => {
 		expect(atFinishedFootnote(note, note.indexOf('First claim.') + 12)).toBe(false); // body text
 	});
 });
+
+describe('note-level rules added in review', () => {
+	it('warns when Ibid follows a footnote with no citation', () => {
+		const t = 'A.[^1] B.[^2]\n\n[^1]: This point was not argued below.\n[^2]: Ibid.';
+		const issue = analyseDocument(t).issues.find((i) => i.rule === 'ibid-no-source')!;
+		expect(issue.severity).toBe('warning');
+	});
+
+	it('moves a footnote number after a closing quotation mark', () => {
+		const t = 'The test is \u2018reasonableness[^1]\u2019 here.\n\n[^1]: Ibid.';
+		const issue = analyseDocument(t).issues.find((i) => i.rule === 'ref-after-punct')!;
+		expect(issue.message).toMatch(/quotation marks/);
+		expect(applyFixes(t, [issue]).text).toContain('\u2018reasonableness\u2019[^1] here.');
+		// An apostrophe in a word is not a closing quotation mark.
+		expect(rules('The Court[^1]\'s view.\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1.')).not.toContain('ref-after-punct');
+	});
+
+	it('treats a footnote ending in a quoted sentence as closed', () => {
+		const t = 'A.[^1]\n\n[^1]: The Court said \'the rule is settled.\'';
+		expect(rules(t)).not.toContain('closing-stop');
+	});
+
+	it('words unexpected-text messages with element labels', () => {
+		const t = 'A.[^1]\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1, 42 zzz qqq.';
+		const issue = analyseDocument(t).issues.find((i) => i.rule === 'unexpected')!;
+		expect(issue.message).toMatch(/^Unexpected text after the pinpoint of this case \(reported\) citation/);
+	});
+});

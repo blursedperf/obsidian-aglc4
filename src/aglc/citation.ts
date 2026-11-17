@@ -43,20 +43,25 @@ const COMMENTARY_RE = /^(?:,\s(?=[a-z])|\s[—–]\s|:\s|\s\((?:emphasis|citatio
  */
 export function splitSegments(text: string): Segment[] {
 	const trimmedEnd = text.replace(/\s+$/, '');
-	const closed = /[.?!]$/.test(trimmedEnd);
-	const body = closed ? trimmedEnd.slice(0, -1) : trimmedEnd;
+	// A footnote ending in a quotation that ends with a full stop ("… the law.'") counts as closed.
+	const closing = /[.?!](?:['’"”])?$/.exec(trimmedEnd);
+	const closed = closing !== null;
+	const body = closed && closing[0].length === 1 ? trimmedEnd.slice(0, -1) : trimmedEnd;
 	const parts: { from: number; to: number }[] = [];
 	let depth = 0;
 	let inAngle = false;
+	let italic: string | null = null;
 	let start = 0;
 	for (let i = 0; i < body.length; i++) {
 		const c = body[i];
 		if (c === '<' && /^<https?:/.test(body.slice(i, i + 7))) inAngle = true;
 		else if (c === '>' && inAngle) inAngle = false;
 		else if (inAngle) continue;
+		// A semicolon in italics belongs to a title ("*Re Wakim; Ex parte McNally*"), not between sources.
+		else if ((c === '*' || c === '_') && body[i + 1] !== c && body[i - 1] !== c) italic = italic === c ? null : italic ?? c;
 		else if (c === '(' || c === '[') depth++;
 		else if ((c === ')' || c === ']') && depth > 0) depth--;
-		else if (c === ';' && depth === 0) {
+		else if (c === ';' && depth === 0 && italic === null) {
 			parts.push({ from: start, to: i });
 			start = i + 1;
 		}
@@ -95,6 +100,12 @@ export function rankMatches(body: string, hasSignal: boolean): MatchResult[] {
 		.map((r, i) => ({ r, s: score(r), i }))
 		.sort((a, b) => b.s - a.s || a.i - b.i)
 		.map((x) => x.r);
+}
+
+/** The label of the last element matched, eg "pinpoint", "law report series". */
+function lastLabel(r: MatchResult): string {
+	const id = r.elements[r.elements.length - 1]?.id;
+	return r.spec.elements.find((e) => e.id === id)?.label.toLowerCase() ?? 'citation';
 }
 
 function describeNext(spec: SourceSpec, next: number): ElementSpec | undefined {
@@ -166,7 +177,7 @@ export function analyseSegment(seg: Segment, opts: { showInfo?: boolean } = {}):
 			const nextEl = best.spec.elements[best.next];
 			issues.push({
 				rule: 'unexpected', severity: 'warning', from: seg.bodyFrom + best.pos, to: seg.bodyFrom + seg.body.length,
-				message: `Unexpected text after the ${best.elements[best.elements.length - 1]?.id ?? 'citation'} of a ${best.spec.label.toLowerCase()} citation${nextEl ? ` (expected ${nextEl.label.toLowerCase()} or the end of the citation)` : ''}.`,
+				message: `Unexpected text after the ${lastLabel(best)} of this ${best.spec.label.toLowerCase()} citation${nextEl ? `: expected ${nextEl.label.toLowerCase()} or the end of the citation` : ''}.`,
 				ref: best.spec.ref,
 			});
 		}
@@ -186,7 +197,7 @@ export interface FootnoteAnalysis {
 export function analyseFootnote(text: string, opts: { showInfo?: boolean; inProgress?: boolean } = {}): FootnoteAnalysis {
 	const segs = splitSegments(text);
 	const trimmed = text.replace(/\s+$/, '');
-	const closed = /[.?!]$/.test(trimmed);
+	const closed = /[.?!](?:['’"”])?$/.test(trimmed);
 	const segments = segs.map((s) => analyseSegment(s, opts));
 	const issues = segments.flatMap((s) => s.issues);
 	if (!closed && trimmed.length > 0 && !opts.inProgress) {
@@ -256,7 +267,8 @@ export function suggestNext(before: string): Suggestion[] {
 	const exact = viable.filter((r) => r.pos === body.length);
 	const pool = exact.length > 0 ? exact : viable;
 	const top = Math.max(...pool.map((r) => r.elements.length));
-	const chosen = pool.filter((r) => r.claimed || r.elements.length === top).slice(0, 4);
+	// Every kind of citation the text so far fits completely, most complete first; otherwise the best partial.
+	const chosen = (exact.length > 0 ? exact : pool.filter((r) => r.claimed || r.elements.length === top)).slice(0, 6);
 
 	const out: Suggestion[] = [];
 	const seen = new Set<string>();

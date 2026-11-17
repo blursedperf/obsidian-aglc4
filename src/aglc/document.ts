@@ -27,6 +27,8 @@ export interface DocumentAnalysis {
 }
 
 const PUNCT_AFTER = /^[.,;:!?]/;
+/** A closing quotation mark after a footnote number, ending a quotation (not an apostrophe in a word). */
+const QUOTE_AFTER = /^['’"”](?=[\s.,;:!?)]|$)/;
 const FULL_KINDS = new Set(['case-mnc', 'case-reported', 'case-unreported', 'journal', 'chapter', 'book', 'newspaper', 'internet', 'treaty']);
 
 function stripMarks(s: string): string {
@@ -100,6 +102,14 @@ export function analyseDocument(text: string, opts: AnalyseOptions = {}): Docume
 	];
 	for (const mk of markers) {
 		const after = text.slice(mk.to, mk.to + 1);
+		const quote = QUOTE_AFTER.exec(text.slice(mk.to, mk.to + 2));
+		if (quote && !PUNCT_AFTER.test(after)) {
+			push({
+				rule: 'ref-after-punct', severity: 'error', from: mk.from, to: mk.to + 1,
+				message: 'Footnote numbers go after closing quotation marks.', ref: 'r 1.1.2',
+				fix: { from: mk.from, to: mk.to + 1, insert: quote[0] + text.slice(mk.from, mk.to), label: 'Move after quotation mark' },
+			});
+		}
 		if (PUNCT_AFTER.test(after)) {
 			push({
 				rule: 'ref-after-punct', severity: 'error', from: mk.from, to: mk.to + 1,
@@ -155,6 +165,9 @@ export function analyseDocument(text: string, opts: AnalyseOptions = {}): Docume
 					push({ rule: 'ibid-first', severity: 'error', from, to, message: '"Ibid" refers to the preceding footnote, but this is the first footnote.', ref: 'r 1.4.3' });
 				} else if (segIdx > 0) {
 					push({ rule: 'ibid-position', severity: 'error', from, to, message: '"Ibid" can only be used for the first source in a footnote.', ref: 'r 1.4.3' });
+				} else if (prev && prev.segments.every((s) => s.kind === null)) {
+					// A warning: the preceding footnote may cite a kind of source the checker does not recognise.
+					push({ rule: 'ibid-no-source', severity: 'warning', from, to, message: '"Ibid" refers to the source in the preceding footnote, which does not look like a citation.', ref: 'r 1.4.3' });
 				} else if (prev && !prevSingle) {
 					push({ rule: 'ibid-multiple', severity: 'error', from, to, message: '"Ibid" cannot be used when the preceding footnote cites more than one source. Use a short reference with "(n X)".', ref: 'r 1.4.3' });
 				}

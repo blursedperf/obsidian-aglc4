@@ -42,26 +42,28 @@ Each footnote is split into its sources (separated by `;`), each source is match
 
 | Source | Structure checked |
 | --- | --- |
-| Reported cases (ch 2) | italic name, (year) or [year] to suit the series, volume, series, starting page, pinpoints, judges, short title |
+| Reported cases (ch 2) | italic name, (year) or [year] to suit the series, volume, series, starting page, pinpoints (page, paragraph, or page and paragraph), judges (including "Lord Atkin", "Denning MR", "Kirby J, dissenting"), short title |
 | Medium neutral citations (r 2.3) | [year], recognised court identifier, number, paragraph pinpoints |
 | Unreported cases without MNC | (court, judge, date) |
-| Legislation (ch 3) | italic title with year, abbreviated jurisdiction, `s`/`ss`/`pt`/`sch` … pinpoints, short title |
-| Journal articles (ch 5) | author, 'title', year, volume(issue), journal (not italic), starting page, pinpoints |
-| Books and reports (ch 6, 7) | author, italic title, (publisher, edition, year), pinpoint |
+| Legislation (ch 3) | italic title with year, abbreviated jurisdiction, pinpoints such as `s 5(1)`, `ss 180–4`, `pt 2 div 3`, `sch 1 item 3`, `reg 7.1.04`, short title; the *Australian Constitution* and short titles |
+| Explanatory memoranda (ch 3) | document, Bill (not italicised), jurisdiction, page and paragraph pinpoint |
+| Journal articles (ch 5) | author, 'title', year, volume(issue), journal in full (not italic or abbreviated), starting page or "(forthcoming)", pinpoints |
+| Books and reports (ch 6, 7) | author or editor, italic title, (publisher, edition, year) or (report details, date), pinpoint, `<URL>`, short title |
 | Chapters in edited books (ch 6) | author, 'title', in editor (ed), italic book title, publication, starting page |
 | Newspaper articles (ch 7) | author, 'headline', italic newspaper, (place, date), page or URL |
-| Internet materials (ch 7) | author, 'title', (document type, date), `<URL>` |
+| Internet materials (ch 7) | author, 'title', (Web Page, date), `<URL>` (required), short title |
+| Speeches, papers and releases (ch 7) | author, 'title', (Speech / Conference Paper / Media Release / Working Paper …, details, date), pinpoint, optional `<URL>` |
 | Treaties (ch 8) | italic title, opened for signature date, treaty series, entry into force, articles |
 | Hansard (ch 7) | jurisdiction, *Parliamentary Debates*, chamber, date, page, speaker |
-| Ibid and subsequent references (r 1.4) | `Ibid` form and pinpoint, `(n X)` form and pinpoint |
+| Ibid and subsequent references (r 1.4) | `Ibid` form, pinpoint and judge; `(n X)` form (including a missing space, "(n3)") and pinpoint, including "Smith, *Short Title* (n X)" for an author of several works |
 
-Across the note: footnote numbers after punctuation (r 1.1.2), a closing full stop (r 1.1.4), "Ibid" only for the single source of the preceding footnote (r 1.4.3), `(n X)` pointing at an earlier footnote that cites the source (r 1.4.1), full citations repeated where "Ibid" or a short reference is needed, footnotes referenced twice, missing or unused footnotes.
+Across the note: footnote numbers after punctuation and closing quotation marks (r 1.1.2), a closing full stop (r 1.1.4), "Ibid" only for the single source of the preceding footnote, and not after a footnote with no citation (r 1.4.3), `(n X)` pointing at an earlier footnote that cites the source (r 1.4.1), full citations repeated where "Ibid" or a short reference is needed, footnotes referenced twice, missing or unused footnotes.
 
-General style: single quotation marks, en dashes in spans, no "p"/"pp"/"at" before pinpoints, `[23]` for paragraphs, `s` not "section" or "§", unpunctuated abbreviations (`eg`, `ie`, `Pty Ltd`, `No`, `ed`), "et al", signals in AGLC form (`See, eg,`), "1 January 2020" dates with the month in full, URLs in angle brackets, and terms AGLC4 does not use (supra, op cit, id).
+General style: titles of secondary sources and journal names in title case (articles, conjunctions and prepositions in lower case), single quotation marks (double only for a quotation within a quotation), en dashes in spans, no "p"/"pp"/"at" before pinpoints, `[23]` for paragraphs, `s` not "section" or "§", unpunctuated abbreviations (`eg`, `ie`, `Pty Ltd`, `No`, `ed`), "et al", signals in AGLC form (`See, eg,`), "1 January 2020" dates with the month in full, URLs in angle brackets, and terms AGLC4 does not use (supra, op cit, id).
 
 Underlines are red for errors, orange for warnings, and dotted blue for suggestions (such as prose that looks like an unfinished citation). Hover an underline for the explanation, a **Fix** button, and **Ignore this rule**. **Fix all automatically fixable problems** applies every fix in the note, and **List AGLC4 problems in this note** (or clicking the status bar) lists them with jump-to.
 
-Explanatory text in a footnote is left alone. A citation followed by commentary, such as `…, 30, where the Court held …`, is accepted.
+Explanatory text in a footnote is left alone, as is "Section" at the start of a sentence. A semicolon inside an italicised title (*Re Wakim; Ex parte McNally*) does not split the footnote into two sources. A citation followed by commentary, such as `…, 30, where the Court held …`, is accepted.
 
 The footnote being typed is not flagged as unfinished until you move on from it.
 
