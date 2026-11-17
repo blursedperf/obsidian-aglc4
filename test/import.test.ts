@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { analyseDocument } from '../src/aglc/document';
 import { DEFAULT_EXPORT, exportDocx } from '../src/export/docx';
-import { importDocx } from '../src/import/docx';
+import { importDocx, levelFromStyleName } from '../src/import/docx';
 import { applyHeadingScheme, numberHeadings } from '../src/layout/headings';
 import { parseMarkdown } from '../src/export/markdown';
 
@@ -79,6 +79,76 @@ describe('Word import', () => {
 		expect(r.numberedHeadings).toBe(2);
 		expect(r.warnings.join(' ')).toMatch(/deletions/);
 		expect(r.warnings.join(' ')).toMatch(/Endnotes/);
+	});
+
+	const W_NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+	const docx = (body: string, styles = '') => zipSync({
+		'word/document.xml': strToU8(`<?xml version="1.0"?><w:document ${W_NS}><w:body>${body}</w:body></w:document>`),
+		'word/styles.xml': strToU8(`<?xml version="1.0"?><w:styles ${W_NS}>${styles}</w:styles>`),
+	});
+	const para = (text: string, pPr = '', rPr = '') => `<w:p><w:pPr>${pPr}</w:pPr><w:r><w:rPr>${rPr}</w:rPr><w:t xml:space="preserve">${text}</w:t></w:r></w:p>`;
+
+	it('reads heading levels from custom style names, nearest style first', () => {
+		// Modelled on a law-school template: H1 and H2 styles are based on an italic "H3" style, which is
+		// based on the body style, and the title style on Heading 1.
+		const styles = `
+<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/></w:style>
+<w:style w:type="paragraph" w:styleId="LawTitle"><w:name w:val="Law Title"/><w:basedOn w:val="Heading1"/><w:pPr><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:caps/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="LawPara"><w:name w:val="Law Para"/></w:style>
+<w:style w:type="paragraph" w:styleId="LawH3num"><w:name w:val="Law H3~ num"/><w:basedOn w:val="LawPara"/><w:rPr><w:i/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="LawH2let"><w:name w:val="Law H2 let"/><w:basedOn w:val="LawH3num"/><w:pPr><w:jc w:val="center"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="LawH1rome"><w:name w:val="Law H1 rome"/><w:basedOn w:val="LawH3num"/><w:pPr><w:jc w:val="center"/></w:pPr><w:rPr><w:i w:val="0"/><w:smallCaps/></w:rPr></w:style>`;
+		const st = (id: string) => `<w:pStyle w:val="${id}"/>`;
+		const body = [
+			para('My essay', st('LawTitle')),
+			para('Opening words.', st('LawPara')),
+			para('I Introduction', st('LawH1rome')),
+			para('Body.', st('LawPara')),
+			para('A First Point', st('LawH2let')),
+			para('B Second Point', st('LawH2let')),
+			para('1 Detail', st('LawH3num')),
+			para('II Conclusion', st('LawH1rome')),
+		].join('');
+		const r = importDocx(docx(body, styles));
+		expect(r.markdown.split('\n').filter((l) => l.startsWith('#'))).toEqual([
+			'# My essay', '## Introduction', '### First Point', '### Second Point', '#### Detail', '## Conclusion',
+		]);
+		expect(r.markdown).toContain('Opening words.\n\n## Introduction\n\nBody.');
+		expect(r.numberedHeadings).toBe(5);
+	});
+
+	it('recognises AGLC4 headings formatted by hand', () => {
+		const centre = '<w:jc w:val="center"/>';
+		const body = [
+			para('I', centre, '<w:smallCaps/>').replace('</w:p>', '') + `<w:r><w:rPr><w:smallCaps/></w:rPr><w:t xml:space="preserve"> Introduction</w:t></w:r></w:p>`,
+			para('Text.'),
+			para('A Background', centre, '<w:i/>'),
+			para('1 Scope', '', '<w:i/>'),
+			para('(a) Detail', '', '<w:i/>'),
+			para('(i) Finer detail', '', '<w:i/>'),
+			para('1 apple and 2 pears are on the table.'),
+		].join('');
+		const r = importDocx(docx(body));
+		expect(r.markdown.split('\n').filter((l) => l.startsWith('#'))).toEqual([
+			'# Introduction', '## Background', '### Scope', '#### Detail', '##### Finer detail',
+		]);
+		expect(r.markdown).toContain('1 apple and 2 pears are on the table.');
+	});
+
+	it('keeps a leading word that only looks like a number when headings are not numbered', () => {
+		const styles = '<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/></w:style>';
+		const body = [para('A New Approach', '<w:pStyle w:val="Heading2"/>'), para('Text.'), para('Further Thoughts', '<w:pStyle w:val="Heading2"/>')].join('');
+		const r = importDocx(docx(body, styles));
+		expect(r.markdown).toContain('## A New Approach');
+		expect(r.numberedHeadings).toBe(0);
+	});
+
+	it('reads levels from style names', () => {
+		const cases: [string, number | null][] = [
+			['heading 2', 2], ['Law H2 let', 2], ['AGLC Heading 3', 3], ['Law H3~ num', 3], ['Law Title', 0], ['Title', 0],
+			['Subtitle', null], ['Normal', null], ['TOC Heading', null], ['toc 1', null], ['HTML Preformatted', null], ['List Paragraph', null],
+		];
+		for (const [name, level] of cases) expect([name, levelFromStyleName(name)]).toEqual([name, level]);
 	});
 
 	it('rejects files that are not Word documents', () => {

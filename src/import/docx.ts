@@ -6,7 +6,7 @@
  * accepted and deletions dropped.
  */
 import { strFromU8, unzipSync } from 'fflate';
-import { hasTypedNumber, stripTypedNumber } from '../layout/headings';
+import { hasTypedNumber, numberHeadings, stripTypedNumber } from '../layout/headings';
 import { type XmlElement, find, findAll, isElement, kid, kids, parseXml } from './xml';
 
 export interface ImportResult {
@@ -145,10 +145,11 @@ class Converter {
 
 	/** Heading level of a paragraph style (1–6), 0 for the title style, or null. */
 	private headingLevel(styleId: string | undefined, pPr: XmlElement | undefined): number | null {
+		// The nearest style whose name gives a level wins: a custom "Law H1 rome" based on "Law H3 num" is
+		// level one.
 		for (const s of this.chain(styleId)) {
-			if (s.name === 'title') return 0;
-			const m = /^heading (\d)$/.exec(s.name);
-			if (m) return Math.min(6, Number(m[1]));
+			const level = levelFromStyleName(s.name);
+			if (level !== null) return level;
 		}
 		const outline = val(kid(pPr, W('outlineLvl'))) ?? this.chain(styleId).map((s) => val(kid(s.pPr, W('outlineLvl')))).find((v) => v !== undefined);
 		if (outline !== undefined && Number(outline) < 6) return Number(outline) + 1;
@@ -289,16 +290,25 @@ class Converter {
 	private paragraph(p: XmlElement, inNote: boolean): { kind: 'heading' | 'list' | 'quote' | 'para'; text: string; level: number; ordered?: boolean } | null {
 		const pPr = kid(p, W('pPr'));
 		const styleId = val(kid(pPr, W('pStyle')));
-		const heading = inNote ? null : this.headingLevel(styleId, pPr);
-		const pieces: Piece[] = [];
+		let heading = inNote ? null : this.headingLevel(styleId, pPr);
+		let pieces: Piece[] = [];
 		this.inline(p, styleId, heading === null, inNote, pieces, { depth: 0, skip: [] });
+		if (heading === null && !inNote) {
+			heading = manualAglcHeading(pieces, this.paraProp(pPr, styleId, 'jc'));
+			if (heading !== null) {
+				// Re-read without the paragraph's own formatting: heading formatting comes from the level.
+				pieces = [];
+				this.inline(p, styleId, false, inNote, pieces, { depth: 0, skip: [] });
+			}
+		}
+		if (heading !== null) pieces = withoutWholeFormatting(pieces);
 		let text = this.markdown(pieces);
 
 		if (heading !== null) {
 			const numPr = this.paraProp(pPr, styleId, 'numPr');
 			if (numPr && val(kid(numPr, W('numId'))) !== '0') this.numberedHeadings++;
-			if (hasTypedNumber(text)) { text = stripTypedNumber(text); this.numberedHeadings++; }
-			text = text.replace(/\t/g, ' ').replace(/\n/g, ' ').trim();
+			// Typed numbers are removed once all the headings are known (see numberHeadings in convert).
+			text = text.replace(/\n/g, ' ').trim();
 			if (!text) return null;
 			const level = heading === 0 ? 1 : Math.min(6, heading + (this.hasTitle ? 1 : 0));
 			return { kind: 'heading', text, level };
@@ -333,14 +343,14 @@ class Converter {
 
 	convert(body: XmlElement): string {
 		// Word defines a Title style whether or not it is used: what matters is a paragraph using it.
-		this.hasTitle = findAll(body, W('pStyle')).some((ps) => this.chain(val(ps)).some((st) => st.name === 'title'));
-		const blocks: { kind: string; text: string }[] = [];
+		this.hasTitle = findAll(body, W('pStyle')).some((ps) => this.headingLevel(val(ps), undefined) === 0);
+		const blocks: { kind: string; text: string; level?: number }[] = [];
 		const walk = (el: XmlElement) => {
 			for (const c of kids(el)) {
 				if (c.name === 'w:p') {
 					const b = this.paragraph(c, false);
 					if (!b) continue;
-					if (b.kind === 'heading') blocks.push({ kind: 'heading', text: `${'#'.repeat(b.level)} ${b.text}` });
+					if (b.kind === 'heading') blocks.push({ kind: 'heading', text: b.text, level: b.level });
 					else if (b.kind === 'list') blocks.push({ kind: 'list', text: `${'    '.repeat(b.level)}${b.ordered ? '1.' : '-'} ${b.text.replace(/\n/g, `\n${'    '.repeat(b.level + 1)}`)}` });
 					else if (b.kind === 'quote') blocks.push({ kind: 'quote', text: `> ${b.text.replace(/\n/g, '\n> ')}` });
 					else blocks.push({ kind: 'para', text: b.text });
@@ -353,6 +363,8 @@ class Converter {
 			}
 		};
 		walk(body);
+
+		this.removeHeadingNumbers(blocks.filter((b) => b.kind === 'heading'));
 
 		// Lists stay together; consecutive quotation paragraphs stay in one quotation.
 		let md = '';
@@ -375,9 +387,96 @@ class Converter {
 		return `${md.trim()}\n${defs.length > 0 ? `\n${defs.join('\n')}\n` : ''}`;
 	}
 
+	/**
+	 * Remove heading numbers typed as text. A number followed by a tab, two spaces or a non-breaking space is
+	 * always removed. One followed by a single space ("I Introduction") is removed only when the document's
+	 * headings follow the AGLC4 sequence (I, II …; A, B …), so "A New Approach" in an unnumbered document
+	 * keeps its "A".
+	 */
+	private removeHeadingNumbers(headings: { text: string; level?: number }[]) {
+		const expected = numberHeadings(headings.map((h) => h.level ?? 1), this.hasTitle ? 'h2' : 'h1');
+		const typed = (text: string, n: string | null) => !!n && text.startsWith(n) && /^[ \t\u00a0]+\S/.test(text.slice(n.length));
+		const numbered = expected.filter((e) => e.number).length;
+		const matches = headings.filter((h, i) => typed(h.text, expected[i]!.number)).length;
+		const sequence = matches >= 2 && matches * 2 >= numbered;
+		headings.forEach((h, i) => {
+			const n = expected[i]!.number;
+			if (sequence && n && typed(h.text, n)) {
+				h.text = h.text.slice(n.length).replace(/^[ \t\u00a0]+/, '');
+				this.numberedHeadings++;
+			} else if (hasTypedNumber(h.text)) {
+				h.text = stripTypedNumber(h.text);
+				this.numberedHeadings++;
+			}
+			h.text = `${'#'.repeat(h.level ?? 1)} ${h.text.replace(/\t/g, ' ').trim()}`;
+		});
+	}
+
 	get footnoteCount(): number {
 		return this.noteOrder.length;
 	}
+}
+
+/**
+ * Heading level from a style name: Word's "heading 2", custom styles that name a level ("AGLC Heading 2",
+ * "Law H2 let"), or 0 for a title style ("Title", "Law Title"; not "Subtitle").
+ */
+export function levelFromStyleName(name: string): number | null {
+	const n = name.toLowerCase();
+	if (/(?:^|[^a-z])title(?:[^a-z]|$)/.test(n)) return 0;
+	const m = /heading\s*([1-6])(?![0-9])/.exec(n) ?? /(?:^|[^a-z0-9])h([1-6])(?![0-9])/.exec(n);
+	return m ? Number(m[1]) : null;
+}
+
+/**
+ * Recognise a heading formatted by hand in AGLC4 style, from its number and formatting:
+ *   I     large and small capitals (or centred, upright)   → level 1
+ *   A     centred italics                                  → level 2
+ *   1     italics                                          → level 3
+ *   (a)   italics                                          → level 4
+ *   (i)   italics                                          → level 5
+ * Only short, single-line paragraphs that do not end like a sentence are considered.
+ */
+function manualAglcHeading(pieces: Piece[], jc: XmlElement | undefined): number | null {
+	const segs = pieces.filter((p): p is Seg => 'text' in p);
+	const plain = segs.map((p) => p.text).join('');
+	const m = /^(\([ivxlc]+\)|\([a-z]{1,2}\)|[IVXLC]+|[A-Z]|\d{1,2})[ \t\u00a0]+(?=\S)/.exec(plain);
+	if (!m || plain.length > 150 || plain.includes('\n') || /[.:;,]\s*$/.test(plain)) return null;
+	// Share of the heading's text (after the number) in italics or small capitals.
+	let total = 0, italic = 0, small = 0, seen = 0;
+	for (const p of segs) {
+		for (const ch of p.text) {
+			seen++;
+			if (seen <= m[0].length || /\s/.test(ch)) continue;
+			total++;
+			if (p.fmt.i) italic++;
+			if (p.fmt.smallCaps) small++;
+		}
+	}
+	if (total === 0) return null;
+	const isItalic = italic / total >= 0.7;
+	const isSmallCaps = small / total >= 0.7;
+	const centred = jc !== undefined && ['center', 'centre'].includes(jc.attrs['w:val'] ?? '');
+	const num = m[1]!;
+	if (/^[IVXLC]+$/.test(num) && (isSmallCaps || (centred && !isItalic && (num.length > 1 || !isItalic)))) return 1;
+	if (/^[A-Z]$/.test(num) && centred && isItalic) return 2;
+	if (/^\d{1,2}$/.test(num) && isItalic) return 3;
+	if (/^\([ivxlc]+\)$/.test(num) && isItalic) return 5;
+	if (/^\([a-z]{1,2}\)$/.test(num) && isItalic) return 4;
+	return null;
+}
+
+/**
+ * Formatting that covers the whole of a heading is the heading's own style (eg italics for AGLC4 level
+ * two), not emphasis: remove it. Formatting of part of a heading, such as an italic case name, is kept.
+ */
+function withoutWholeFormatting(pieces: Piece[]): Piece[] {
+	const segs = pieces.filter((p): p is Seg => 'text' in p && p.text.trim() !== '');
+	if (segs.length === 0) return pieces;
+	const keys: (keyof Fmt)[] = ['i', 'b', 'strike', 'mark', 'smallCaps'];
+	const whole = keys.filter((k) => segs.every((p) => p.fmt[k]));
+	if (whole.length === 0) return pieces;
+	return pieces.map((p) => ('text' in p ? { ...p, fmt: { ...p.fmt, ...Object.fromEntries(whole.map((k) => [k, false])) } } : p));
 }
 
 function sameFmt(a: Fmt, b: Fmt): boolean {
