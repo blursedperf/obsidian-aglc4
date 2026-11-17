@@ -122,4 +122,4 @@ npm run lint
 
 The plugin makes no network requests; `npm test` runs `scripts/offline-audit.mjs` over the source and the bundle to check this. `sample/` has a correctly cited essay and a note of common mistakes to try it on.
 
-To try it in a vault, copy `main.js`, `manifest.json` and `styles.css` to `<vault>/.obsidian/plugins/aglc4/` and enable **AGLC4 Citations** in Community plugins.
+To try it in a vault, copy `main.js`, `manifest.json` and `styles.css` to `<vault>/.obsidian/plugins/aglc-citations/` and enable **AGLC4 Citations** in Community plugins.
