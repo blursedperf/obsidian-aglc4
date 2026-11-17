@@ -7,7 +7,7 @@
  */
 import { type ExportOptions, prepare } from '../export/docx';
 import { type Block, type Inline, type MdDocument, parseMarkdown } from '../export/markdown';
-import { CONTENT_HEIGHT, CONTENT_WIDTH, PAGE, type ParaStyle, type Styles, TAB_STOP, cssFontFamily, lineHeight, styles } from './metrics';
+import { CONTENT_HEIGHT, CONTENT_WIDTH, PAGE, type ParaStyle, type Styles, NUMBER_SPACE, cssFontFamily, lineHeight, styles } from './metrics';
 import { type PBlock, type PNote, type Page, paginate } from './paginate';
 
 const PX = 96 / 72;
@@ -121,9 +121,7 @@ class Builder {
 					const style = b.title ? this.st.title : this.st.headings[(b.styleLevel ?? b.level) - 1]!;
 					const el = this.para(style, indent);
 					if (b.number) {
-						// The number, then a tab to Word's first default tab stop.
-						const num = el.createSpan({ cls: 'aglc-pv-hnum', text: b.number });
-						num.setCssStyles({ minWidth: `${TAB_STOP}pt` });
+						el.createSpan({ cls: style.uprightNumber ? 'aglc-pv-hnum aglc-pv-hnum-upright' : 'aglc-pv-hnum', text: b.number + NUMBER_SPACE });
 					}
 					this.inline(b.c, el, { italic: !!style.italic, bold: !!style.bold }, false);
 					this.add(el, style);

@@ -96,7 +96,7 @@ const GROUPS: Group[] = [
 	{
 		heading: 'Headings',
 		items: [
-			{ name: 'Heading style', desc: 'AGLC4 numbers and formats headings I, A, 1, (a), (i): level one in small capitals, the rest in italics. Numbers are added on export, in the page preview and as a faint label in the editor; your notes keep plain headings.', control: { type: 'dropdown', key: 'headingScheme', options: { plain: 'As written', aglc: 'AGLC4 hierarchy' } } },
+			{ name: 'Heading style', desc: 'AGLC4 numbers and formats headings I, A, 1, (a), (i): level one centred in small capitals, level two centred in italics, levels three to five in italics. Numbers are added on export, in the page preview and as a faint label in the editor; your notes keep plain headings.', control: { type: 'dropdown', key: 'headingScheme', options: { plain: 'As written', aglc: 'AGLC4 hierarchy' } } },
 			{ name: 'AGLC4 level one', desc: 'Which Markdown heading is level I. Automatic: ## when the note opens with a single # heading, which becomes the title; otherwise #.', control: { type: 'dropdown', key: 'aglcTopLevel', options: { auto: 'Automatic', h1: '# headings', h2: '## headings (# is the title)' } } },
 		],
 	},

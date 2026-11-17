@@ -70,6 +70,8 @@ export interface ParaStyle {
 	/** Do not split across pages (headings). */
 	keepLines?: boolean;
 	smallCaps?: boolean;
+	/** For numbered headings: the number is set upright even when the heading is italic. */
+	uprightNumber?: boolean;
 }
 
 export interface LayoutOptions {
@@ -102,12 +104,18 @@ export function styles(o: LayoutOptions): Styles {
 		body: { size: o.fontSize, multiple: o.lineSpacing, before: 0, after: 6 },
 		footnote: { size: o.footnoteSize, multiple: 1, before: 0, after: 0 },
 		headings: o.headingScheme === 'aglc' ? [
-			// AGLC4: level one in small capitals, levels two to five in italics, at body size.
-			heading(o.fontSize, 12, 6, { smallCaps: true }),
+			// AGLC4, at body size:
+			// I    numeral upright; heading in large and small capitals; centred
+			heading(o.fontSize, 12, 6, { smallCaps: true, center: true }),
+			// A    letter upright; heading italic; centred
+			heading(o.fontSize, 12, 6, { italic: true, uprightNumber: true, center: true }),
+			// 1    numeral upright; heading italic; left-aligned
+			heading(o.fontSize, 12, 6, { italic: true, uprightNumber: true }),
+			// (a)  letter and heading italic; left-aligned
 			heading(o.fontSize, 12, 6, { italic: true }),
+			// (i)  numeral and heading italic; left-aligned
 			heading(o.fontSize, 12, 6, { italic: true }),
-			heading(o.fontSize, 12, 6, { italic: true }),
-			heading(o.fontSize, 12, 6, { italic: true }),
+			// Below level five: unnumbered, italic, left-aligned
 			heading(o.fontSize, 12, 6, { italic: true }),
 		] : [
 			heading(o.fontSize + 4, 12, 6, { bold: true }),
@@ -129,8 +137,8 @@ export function lineHeight(style: ParaStyle, font: string): number {
 	return style.size * lineFactor(font) * style.multiple;
 }
 
-/** Word's default tab stops, every half inch: a heading number is followed by a tab to the first. */
-export const TAB_STOP = 36;
+/** Separates a heading's number from its text: a space that keeps the number on the heading's line. */
+export const NUMBER_SPACE = '\u00a0';
 
 /** Points to twentieths of a point, Word's unit for spacing and indents. */
 export const twips = (pt: number): number => Math.round(pt * 20);

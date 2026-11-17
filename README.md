@@ -92,13 +92,13 @@ Set **Heading style** to **AGLC4 hierarchy** to number and format headings as AG
 
 | Level | Number | Style |
 | --- | --- | --- |
-| I | I, II, III | small capitals |
-| II | A, B, C | italics |
-| III | 1, 2, 3 | italics |
-| IV | (a), (b), (c) | italics |
-| V | (i), (ii), (iii) | italics |
+| One | I, II, III (upright) | large and small capitals, centred |
+| Two | A, B, C (upright) | italics, centred |
+| Three | 1, 2, 3 (upright) | italics, left-aligned |
+| Four | (a), (b), (c) (italic) | italics, left-aligned |
+| Five | (i), (ii), (iii) (italic) | italics, left-aligned |
 
-Write plain headings (`## Introduction`): the numbers are added in the Word and HTML exports and the page preview, and shown faintly in the editor, so they stay right as sections are added and moved. **AGLC4 level one** chooses which Markdown heading is level I. Automatic uses `##` when the note opens with a single `#` heading, which becomes a centred title, and `#` otherwise. A number typed at the start of a heading followed by a tab or two spaces ("I&nbsp;&nbsp;Introduction") is removed so it is not doubled.
+Write plain headings (`## Introduction`): the numbers are added in the Word and HTML exports and the page preview, and shown faintly in the editor, so they stay right as sections are added and moved. **AGLC4 level one** chooses which Markdown heading is level I. Automatic uses `##` when the note opens with a single `#` heading, which becomes a centred title, and `#` otherwise. A number typed at the start of a heading followed by a tab, two spaces or a non-breaking space ("I&nbsp;&nbsp;Introduction") is removed so it is not doubled. Headings below level five are italic and unnumbered.
 
 ## Page preview
 

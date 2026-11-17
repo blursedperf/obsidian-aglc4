@@ -229,9 +229,13 @@
 	top: -0.4em;
 }
 
-.aglc-pv-marker,
-.aglc-pv-hnum {
+.aglc-pv-marker {
 	display: inline-block;
+}
+
+/* AGLC4 levels two and three: the number is upright in an italic heading. */
+.aglc-pv-hnum-upright {
+	font-style: normal;
 }
 
 .aglc-pv-code,

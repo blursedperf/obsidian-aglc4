@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { strToU8, zipSync } from 'fflate';
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { analyseDocument } from '../src/aglc/document';
 import { DEFAULT_EXPORT, exportDocx } from '../src/export/docx';
 import { importDocx } from '../src/import/docx';
@@ -104,6 +104,28 @@ describe('AGLC4 heading hierarchy', () => {
 		const hs = doc.blocks.filter((b) => b.t === 'heading');
 		expect(hs.map((h) => h.t === 'heading' && h.c[0]!.t === 'text' ? h.c[0]!.v : '')).toEqual(['Introduction', 'A New Approach']);
 		expect(hs.map((h) => h.t === 'heading' ? h.number : '')).toEqual(['I', 'II']);
+	});
+
+	it('formats Word headings as the AGLC4 table sets out', async () => {
+		const { data } = await exportDocx('## One\n\n### Two\n\n#### Three\n\n##### Four\n\n###### Five\n', { ...DEFAULT_EXPORT, headingScheme: 'aglc', aglcTopLevel: 'h2' });
+		const files = unzipSync(new Uint8Array(data));
+		const styles = strFromU8(files['word/styles.xml']!);
+		const doc = strFromU8(files['word/document.xml']!);
+		const style = (id: string) => new RegExp(`<w:style [^>]*w:styleId="${id}"[\\s\\S]*?</w:style>`).exec(styles)![0];
+		// Level one: centred, large and small capitals, not italic.
+		expect(style('Heading1')).toContain('<w:jc w:val="center"/>');
+		expect(style('Heading1')).toContain('<w:smallCaps/>');
+		expect(style('Heading1')).not.toContain('<w:i/>');
+		// Level two: centred italics; levels three to five: left-aligned italics.
+		expect(style('Heading2')).toContain('<w:jc w:val="center"/>');
+		for (const id of ['Heading2', 'Heading3', 'Heading4', 'Heading5']) expect(style(id)).toContain('<w:i/>');
+		for (const id of ['Heading3', 'Heading4', 'Heading5']) expect(style(id)).not.toContain('<w:jc ');
+		// Numbers: upright for levels two and three (italics switched off), italic for four and five.
+		const numberRun = (n: string) => new RegExp(`<w:r>(?:(?!</w:r>).)*?<w:t[^>]*>${n.replace(/[()]/g, '\\$&')}\u00a0</w:t></w:r>`).exec(doc)![0];
+		expect(numberRun('A')).toContain('<w:i w:val="false"/>');
+		expect(numberRun('1')).toContain('<w:i w:val="false"/>');
+		expect(numberRun('(a)')).not.toContain('<w:i');
+		expect(numberRun('(i)')).not.toContain('<w:i');
 	});
 
 	it('exports numbered AGLC4 headings to Word', async () => {

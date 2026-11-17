@@ -1,13 +1,13 @@
 import type { Block, MdDocument } from '../export/markdown';
 
 /**
- * The AGLC4 heading hierarchy (AGLC4 Part I, general rules):
+ * The AGLC4 heading hierarchy:
  *
- *   I     Level one        (small capitals)
- *   A     Level two        (italics)
- *   1     Level three      (italics)
- *   (a)   Level four       (italics)
- *   (i)   Level five       (italics)
+ *   I     Heading Level One     numeral upright; heading in large and small capitals; centred
+ *   A     Heading Level Two     letter upright; heading italicised; centred
+ *   1     Heading Level Three   numeral upright; heading italicised; left-aligned
+ *   (a)   Heading Level Four    letter and heading italicised; left-aligned
+ *   (i)   Heading Level Five    numeral and heading italicised; left-aligned
  *
  * Headings are numbered automatically from their Markdown level, so notes keep plain headings
  * ("## Introduction") and the numbers stay right as sections are added or moved.
@@ -75,10 +75,11 @@ export function numberHeadings(levels: number[], top: TopLevel): HeadingNumber[]
 }
 
 /**
- * A heading number typed by hand, followed by a tab or two spaces ("I\tIntroduction", "(a)  Scope").
- * A single space is not enough: "A New Approach" is a heading, not "A" + "New Approach".
+ * A heading number typed by hand, followed by a tab, two spaces or a non-breaking space (as in the
+ * plugin's own Word export): "I\tIntroduction", "(a)  Scope". A single ordinary space is not enough:
+ * "A New Approach" is a heading, not "A" + "New Approach".
  */
-const TYPED_NUMBER = /^(?:[IVXLC]+|[A-Z]|\d+|\([a-z]{1,3}\)|\([ivxlc]+\))\.?(?:\t|\s{2,})/;
+const TYPED_NUMBER = /^(?:[IVXLC]+|[A-Z]|\d+|\([a-z]{1,3}\)|\([ivxlc]+\))\.?(?:\t|\u00a0|\s{2,})/;
 
 export function stripTypedNumber(text: string): string {
 	return text.replace(TYPED_NUMBER, '');

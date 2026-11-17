@@ -4,10 +4,10 @@
  */
 import {
 	AlignmentType, BorderStyle, Document, ExternalHyperlink, Footer, FootnoteReferenceRun, HeadingLevel, LevelFormat,
-	type IParagraphOptions, Packer, PageNumber, Paragraph, type ParagraphChild, Tab, Table, TableCell, TableRow, TextRun, WidthType,
+	type IParagraphOptions, Packer, PageNumber, Paragraph, type ParagraphChild, Table, TableCell, TableRow, TextRun, WidthType,
 } from 'docx';
 import { type HeadingScheme, type TopLevel, applyHeadingScheme } from '../layout/headings';
-import { PAGE, type ParaStyle, styles, twips } from '../layout/metrics';
+import { NUMBER_SPACE, PAGE, type ParaStyle, type Styles, styles, twips } from '../layout/metrics';
 import { type Block, type Inline, type MdDocument, parseMarkdown, smartenQuotes, walkBlocks } from './markdown';
 
 export interface ExportOptions {
@@ -69,7 +69,11 @@ class DocxBuilder {
 	private listInstance = 0;
 	readonly warnings: string[] = [];
 
-	constructor(private doc: MdDocument, private opts: ExportOptions) {}
+	private readonly st: Styles;
+
+	constructor(private doc: MdDocument, private opts: ExportOptions) {
+		this.st = styles(opts);
+	}
 
 	runs(nodes: Inline[], style: Style = {}, inFootnote = false): ParagraphChild[] {
 		const out: ParagraphChild[] = [];
@@ -152,8 +156,12 @@ class DocxBuilder {
 			switch (b.t) {
 				case 'heading': {
 					const children = this.runs(b.c, {}, inFootnote);
-					if (b.number) children.unshift(new TextRun(b.number), new TextRun({ children: [new Tab()] }));
-					out.push(this.para({ heading: b.title ? HeadingLevel.TITLE : HEADINGS[(b.styleLevel ?? b.level) - 1], children }));
+					const level = b.styleLevel ?? b.level;
+					if (b.number) {
+						const upright = this.st.headings[level - 1]?.uprightNumber;
+						children.unshift(new TextRun({ text: b.number + NUMBER_SPACE, italics: upright ? false : undefined }));
+					}
+					out.push(this.para({ heading: b.title ? HeadingLevel.TITLE : HEADINGS[level - 1], children }));
 					break;
 				}
 				case 'para':

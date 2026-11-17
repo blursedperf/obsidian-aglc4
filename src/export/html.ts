@@ -51,7 +51,7 @@ class HtmlBuilder {
 				case 'heading': {
 					if (b.title) return `<h1 class="title">${this.inline(b.c, inFootnote)}</h1>`;
 					const level = b.styleLevel ?? b.level;
-					const num = b.number ? `<span class="hnum">${esc(b.number)}</span>` : '';
+					const num = b.number ? `<span class="hnum">${esc(b.number)}</span>&nbsp;` : '';
 					const cls = b.styleLevel ? ` class="aglc aglc-${level}"` : '';
 					return `<h${Math.min(6, level)}${cls}>${num}${this.inline(b.c, inFootnote)}</h${Math.min(6, level)}>`;
 				}
@@ -89,10 +89,10 @@ section.footnotes p { margin: 0 0 .4em; }
 a.back { text-decoration: none; font-size: .8em; }
 h1.title { text-align: center; }
 h1.aglc, h2.aglc, h3.aglc, h4.aglc, h5.aglc, h6.aglc { font-size: 1em; font-weight: normal; }
-h1.aglc { font-variant: small-caps; }
+h1.aglc { font-variant: small-caps; text-align: center; }
+h2.aglc { text-align: center; }
 h2.aglc, h3.aglc, h4.aglc, h5.aglc, h6.aglc { font-style: italic; }
-.hnum { display: inline-block; min-width: 3em; font-style: normal; }
-h2.aglc .hnum, h3.aglc .hnum, h4.aglc .hnum, h5.aglc .hnum { font-style: italic; }
+h2.aglc .hnum, h3.aglc .hnum { font-style: normal; }
 table { border-collapse: collapse; } td, th { border: 1px solid #999; padding: .2em .5em; }
 @media print { a { color: inherit; text-decoration: none; } a.back { display: none; } body { margin: 0; max-width: none; } }`;
 	const html = `<!DOCTYPE html>
