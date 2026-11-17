@@ -23,7 +23,7 @@ The High Court rejected terra nullius.[^1] It was applied again later.[^2]
 - **In a footnote pane** (the default on desktop): a pane opens below the note showing the same note at the new footnote, with the cursor in it. The text you were writing stays where it was. The pane is reused for later footnotes, and Obsidian keeps both panes in step, so underlines, hints and suggestions work there too.
 - **In the note**: the cursor jumps to the new footnote at the bottom. Choose this under **Write new footnotes in**; it is always used on phones.
 
-When you finish a footnote, press **Enter** after its closing full stop, or **Escape** anywhere in it, to go back to just after its reference in the text (from the pane, back to the main pane). **Return from footnote to its reference** does the same as a command. Turn this off with **Return after a footnote**. Escape is left alone when Vim key bindings are on. **Jump between footnote and its reference** moves within one editor.
+When you finish a footnote, press **Enter** after its closing full stop, or **Escape** anywhere in it, to go back to just after its reference in the text (from the pane, back to the main pane). **Return from footnote to its reference** does the same as a command. Turn this off with **Return after a footnote**. With **Close the footnote pane when done** (on by default), finishing a footnote with Enter in the pane also closes the pane; Escape returns without closing it, and the next **Insert footnote** opens it again. Escape is left alone when Vim key bindings are on. **Jump between footnote and its reference** moves within one editor.
 
 Footnotes are numbered the way Obsidian numbers them: by the order their references appear. `(n 3)` means the third footnote in the note.
 
@@ -136,7 +136,7 @@ Where the plugin cites a rule it gives the AGLC4 rule number, or the chapter whe
 
 Checking: underlines on or off, dotted suggestions, disabled rules.
 Next element: inline hint, popup while typing, status bar.
-Footnotes: where to write new footnotes (pane or note), return after a footnote, move footnotes to the bottom when leaving a note, renumber, convert `^[inline]` footnotes, keep `(n X)` in sync.
+Footnotes: where to write new footnotes (pane or note), return after a footnote, close the footnote pane when done, move footnotes to the bottom when leaving a note, renumber, convert `^[inline]` footnotes, keep `(n X)` in sync.
 Headings: as written or AGLC4 hierarchy, and which heading is level I.
 Export and page preview: folder, font, sizes, line spacing, typographic quotes, page numbers, title.
 

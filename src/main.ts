@@ -71,7 +71,7 @@ export default class Aglc4Plugin extends Plugin {
 			get settings() { return getSettings(); },
 			report: (analysis, next, view) => this.report(analysis, next, view),
 			disableRule: (rule) => { void this.disableRule(rule); },
-			returnFromFootnote: (view) => this.returnFromFootnote(view),
+			returnFromFootnote: (view, finished) => this.returnFromFootnote(view, finished),
 			vimMode: () => this.vimMode(),
 		}));
 		this.registerEditorSuggest(new NextElementSuggest(this.app, () => this.settings));
@@ -184,7 +184,7 @@ export default class Aglc4Plugin extends Plugin {
 			editorCheckCallback: (checking, editor) => {
 				const cm = cmOf(editor);
 				if (!cm || referenceFor(editor.getValue(), editor.posToOffset(editor.getCursor())) === null) return false;
-				if (!checking) this.returnFromFootnote(cm);
+				if (!checking) this.returnFromFootnote(cm, false);
 				return true;
 			},
 		});
@@ -338,9 +338,10 @@ export default class Aglc4Plugin extends Plugin {
 
 	/**
 	 * Go back from the footnote at the cursor to just after its reference: in the note's main pane when
-	 * writing in the footnote pane, otherwise in the same editor.
+	 * writing in the footnote pane, otherwise in the same editor. When the footnote was finished with Enter
+	 * in the footnote pane, the pane closes if the setting says so.
 	 */
-	private returnFromFootnote(cm: EditorView): boolean {
+	private returnFromFootnote(cm: EditorView, finished: boolean): boolean {
 		let source: MarkdownView | null = null;
 		this.app.workspace.iterateAllLeaves((leaf) => {
 			if (!source && leaf.view instanceof MarkdownView && cmOf(leaf.view.editor) === cm) source = leaf.view;
@@ -353,14 +354,22 @@ export default class Aglc4Plugin extends Plugin {
 
 		let target: MarkdownView = view;
 		const main = this.footnoteMain;
+		let fromPane = false;
 		if (view.leaf === this.footnotePane && this.isOpen(main) && main.view instanceof MarkdownView && main.view.file === view.file) {
 			target = main.view;
+			fromPane = true;
 		}
 		const pos = target.editor.offsetToPos(ref);
 		this.app.workspace.setActiveLeaf(target.leaf, { focus: true });
 		target.editor.setCursor(pos);
 		target.editor.scrollIntoView({ from: pos, to: pos }, true);
 		target.editor.focus();
+		if (fromPane && finished && this.settings.closeFootnotePane) {
+			const pane = this.footnotePane;
+			this.footnotePane = null;
+			// Close after Enter's key handling has finished, so the keystroke does not reach the closed pane.
+			window.setTimeout(() => pane?.detach(), 0);
+		}
 		return true;
 	}
 

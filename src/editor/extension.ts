@@ -19,8 +19,11 @@ export interface AglcHost {
 	/** Called after each analysis of the focused editor, for the status bar. */
 	report(analysis: DocumentAnalysis, next: string | null, view: EditorView): void;
 	disableRule(rule: string): void;
-	/** Go back from the footnote at the cursor to its reference. Returns false if there is none. */
-	returnFromFootnote(view: EditorView): boolean;
+	/**
+	 * Go back from the footnote at the cursor to its reference. `finished` is true when the footnote was
+	 * finished with Enter (the footnote pane may then close). Returns false if there is no reference.
+	 */
+	returnFromFootnote(view: EditorView, finished: boolean): boolean;
 	/** True when Vim key bindings are on, so Escape is left to Vim. */
 	vimMode(): boolean;
 }
@@ -188,7 +191,7 @@ export function buildExtension(host: AglcHost): Extension {
 				if (!host.settings.returnOnFinish || !view.state.selection.main.empty) return false;
 				const text = view.state.doc.toString();
 				if (!atFinishedFootnote(text, view.state.selection.main.head)) return false;
-				return host.returnFromFootnote(view);
+				return host.returnFromFootnote(view, true);
 			},
 		},
 		{
@@ -197,7 +200,7 @@ export function buildExtension(host: AglcHost): Extension {
 				if (!host.settings.returnOnFinish || host.vimMode()) return false;
 				if (view.dom.ownerDocument.querySelector('.suggestion-container')) return false;
 				if (referenceFor(view.state.doc.toString(), view.state.selection.main.head) === null) return false;
-				return host.returnFromFootnote(view);
+				return host.returnFromFootnote(view, false);
 			},
 		},
 	]));
