@@ -1,0 +1,260 @@
+/* Underlines for AGLC4 problems in the editor */
+.aglc-issue {
+	text-decoration-line: underline;
+	text-decoration-thickness: 1.5px;
+	text-underline-offset: 3px;
+	text-decoration-skip-ink: none;
+}
+
+.aglc-error {
+	text-decoration-style: wavy;
+	text-decoration-color: var(--color-red);
+}
+
+.aglc-warning {
+	text-decoration-style: wavy;
+	text-decoration-color: var(--color-orange);
+}
+
+.aglc-info {
+	text-decoration-style: dotted;
+	text-decoration-color: var(--color-blue);
+}
+
+/* Next required element, shown faintly after the cursor */
+.aglc-hint {
+	color: var(--text-faint);
+	font-style: italic;
+	font-size: 0.9em;
+	margin-left: 0.25em;
+	pointer-events: none;
+	user-select: none;
+}
+
+/* Hover explanation */
+.aglc-tooltip {
+	max-width: 420px;
+	padding: var(--size-4-2) var(--size-4-3);
+	font-size: var(--font-ui-small);
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-s);
+}
+
+.aglc-tooltip-item + .aglc-tooltip-item {
+	margin-top: var(--size-4-2);
+	padding-top: var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.aglc-tooltip-head {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-2-1);
+}
+
+.aglc-tooltip-severity {
+	font-weight: var(--font-semibold);
+}
+
+.aglc-tooltip-error .aglc-tooltip-severity { color: var(--color-red); }
+.aglc-tooltip-warning .aglc-tooltip-severity { color: var(--color-orange); }
+.aglc-tooltip-info .aglc-tooltip-severity { color: var(--color-blue); }
+
+.aglc-tooltip-ref {
+	color: var(--text-muted);
+}
+
+.aglc-tooltip-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+	margin-top: var(--size-4-2);
+}
+
+.aglc-tooltip-actions button {
+	font-size: var(--font-ui-smaller);
+	padding: var(--size-2-1) var(--size-4-2);
+	height: auto;
+}
+
+/* Suggestion lists */
+.aglc-suggestion-top {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-4-2);
+}
+
+.aglc-suggestion-label {
+	font-weight: var(--font-medium);
+}
+
+.aglc-suggestion-required {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	border-radius: var(--radius-s);
+	padding: 0 var(--size-2-2);
+}
+
+.aglc-suggestion-source {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	margin-left: auto;
+}
+
+.aglc-suggestion-hint {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	white-space: normal;
+}
+
+.aglc-issue-row-error .aglc-suggestion-label { color: var(--color-red); }
+.aglc-issue-row-warning .aglc-suggestion-label { color: var(--color-orange); }
+.aglc-issue-row-info .aglc-suggestion-label { color: var(--color-blue); }
+
+/* Status bar */
+.aglc-status-errors {
+	color: var(--color-red);
+}
+
+/* Page preview */
+.aglc-pv-view {
+	display: flex;
+	flex-direction: column;
+	padding: 0 !important;
+	overflow: hidden;
+}
+
+.aglc-pv-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	padding: var(--size-4-1) var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.aglc-pv-buttons {
+	display: flex;
+	gap: var(--size-2-1);
+}
+
+.aglc-pv-scroller {
+	flex: 1;
+	overflow: auto;
+	background: var(--background-secondary);
+	padding: 16px;
+}
+
+.aglc-pv-pages {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 16px;
+}
+
+/* The page itself is always black on white, like paper. */
+.aglc-pv-page {
+	position: relative;
+	flex: none;
+	background: #fff;
+	color: #000;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+	overflow: hidden;
+}
+
+.aglc-pv-content {
+	position: absolute;
+}
+
+.aglc-pv-clip {
+	position: absolute;
+	left: 0;
+	right: 0;
+	overflow: hidden;
+}
+
+/* Off-screen measuring area at the real text width. */
+.aglc-pv-measure {
+	position: absolute;
+	left: -100000px;
+	top: 0;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.aglc-pv-para {
+	margin: 0;
+	padding-top: 0;
+	padding-bottom: 0;
+	padding-right: 0;
+	white-space: normal;
+	overflow-wrap: break-word;
+	font-kerning: none;
+	font-variant-ligatures: none;
+	color: #000;
+}
+
+.aglc-pv-para * {
+	line-height: inherit;
+}
+
+/* Word superscripts do not change the line height. */
+.aglc-pv-para sup {
+	font-size: 0.67em;
+	line-height: 0;
+	vertical-align: baseline;
+	position: relative;
+	top: -0.4em;
+}
+
+.aglc-pv-marker {
+	display: inline-block;
+	text-indent: 0;
+}
+
+.aglc-pv-code,
+.aglc-pv-codeblock {
+	font-family: "Courier New", "Liberation Mono", Cousine, monospace;
+}
+
+.aglc-pv-para mark {
+	background: #ff0;
+	color: inherit;
+}
+
+.aglc-pv-hr {
+	border-bottom: 0.75pt solid #000;
+	box-sizing: border-box;
+}
+
+.aglc-pv-table table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.aglc-pv-table td {
+	border: 0.5pt solid #000;
+	padding: 0 5.4pt;
+	vertical-align: top;
+}
+
+.aglc-pv-separator {
+	position: absolute;
+	left: 0;
+	width: 144pt;
+	border-top: 0.5pt solid #000;
+}
+
+.aglc-pv-pagenum {
+	position: absolute;
+	left: 0;
+	right: 0;
+	text-align: center;
+	color: #000;
+}

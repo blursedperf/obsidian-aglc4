@@ -1,0 +1,44 @@
+{
+	"name": "obsidian-aglc4",
+	"version": "1.0.0",
+	"description": "AGLC4 citations for Obsidian: footnotes kept at the bottom of the note, next-element suggestions, live underlining of incorrect or incomplete citations, and Word export with real footnotes.",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"test": "vitest run && node scripts/offline-audit.mjs",
+		"version": "node version-bump.mjs && git add manifest.json versions.json",
+		"lint": "eslint ."
+	},
+	"keywords": [
+		"obsidian",
+		"plugin",
+		"law",
+		"aglc",
+		"aglc4",
+		"citation",
+		"footnotes"
+	],
+	"author": "blursedperf",
+	"license": "MIT",
+	"devDependencies": {
+		"@codemirror/state": "^6.7.6",
+		"@codemirror/view": "^6.43.13",
+		"@eslint/js": "^9.39.5",
+		"@types/node": "^26.6.6",
+		"esbuild": "^0.25.5",
+		"eslint": "^9.39.5",
+		"eslint-plugin-obsidianmd": "^0.6.0",
+		"globals": "^17.14.0",
+		"jiti": "^2.7.0",
+		"jszip": "^3.10.2",
+		"obsidian": "^1.14.4",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.73.0",
+		"vitest": "^3.2.7"
+	},
+	"dependencies": {
+		"docx": "^9.15.4"
+	}
+}
