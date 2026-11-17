@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { analyseDocument, applyFixes } from '../src/aglc/document';
 import { footnoteKeys, remapCrossReferences, scanFootnotes, tidyFootnotes } from '../src/footnotes';
+import { atFinishedFootnote, referenceFor } from '../src/editor/context';
 
 const rules = (t: string) => analyseDocument(t).issues.map((i) => i.rule);
 
@@ -109,5 +110,23 @@ describe('sample notes', () => {
 		expect(t).toContain('[^5]: *Love v Commonwealth* [2020] HCA 3, [81].');
 		expect(t).toContain('(Web Page, 1 May 2020) <https://example.org>.');
 		expect(analyseDocument(t).issues.map((i) => i.rule)).toEqual(['not-aglc']);
+	});
+});
+
+describe('returning from a footnote', () => {
+	const note = 'First claim.[^1] Second claim.[^2]\n\n[^1]: *Mabo v Queensland (No 2)* (1992) 175 CLR 1.\n[^2]: Ibid 4';
+	it('finds the reference of the footnote at the cursor', () => {
+		const inFirst = note.indexOf('Mabo');
+		expect(referenceFor(note, inFirst)).toBe(note.indexOf('[^1]') + 4);
+		expect(referenceFor(note, note.length)).toBe(note.indexOf('[^2]') + 4);
+		expect(referenceFor(note, 3)).toBeNull();
+	});
+	it('knows when a footnote is finished', () => {
+		const endFirst = note.indexOf('CLR 1.') + 6;
+		expect(atFinishedFootnote(note, endFirst)).toBe(true);
+		expect(atFinishedFootnote(note, endFirst - 1)).toBe(false);
+		expect(atFinishedFootnote(note, note.length)).toBe(false); // "Ibid 4" has no full stop yet
+		expect(atFinishedFootnote(note + '.', note.length + 1)).toBe(true);
+		expect(atFinishedFootnote(note, note.indexOf('First claim.') + 12)).toBe(false); // body text
 	});
 });

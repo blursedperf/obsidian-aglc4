@@ -1,10 +1,10 @@
-import { type App, type Editor, MarkdownView, type Menu, Notice, Plugin, SuggestModal, type TAbstractFile, TFile, normalizePath } from 'obsidian';
+import { type App, type Editor, MarkdownView, type Menu, Notice, Platform, Plugin, SuggestModal, type TAbstractFile, TFile, type WorkspaceLeaf, normalizePath } from 'obsidian';
 import type { EditorView } from '@codemirror/view';
 import { type DocumentAnalysis, analyseDocument, applyFixes } from './aglc/document';
 import { suggestNext } from './aglc/citation';
 import type { Issue } from './aglc/types';
 import { footnoteKeys, remapCrossReferences, scanFootnotes, tidyFootnotes } from './footnotes';
-import { footnoteAt, minimalChange } from './editor/context';
+import { footnoteAt, minimalChange, referenceFor } from './editor/context';
 import { buildExtension, refreshEffect } from './editor/extension';
 import { NextElementModal, NextElementSuggest, footnoteTextBeforeCursor } from './editor/suggest';
 import { type ExportOptions, exportDocx } from './export/docx';
@@ -71,6 +71,8 @@ export default class Aglc4Plugin extends Plugin {
 			get settings() { return getSettings(); },
 			report: (analysis, next, view) => this.report(analysis, next, view),
 			disableRule: (rule) => { void this.disableRule(rule); },
+			returnFromFootnote: (view) => this.returnFromFootnote(view),
+			vimMode: () => this.vimMode(),
 		}));
 		this.registerEditorSuggest(new NextElementSuggest(this.app, () => this.settings));
 
@@ -177,6 +179,16 @@ export default class Aglc4Plugin extends Plugin {
 			},
 		});
 		this.addCommand({
+			id: 'return-from-footnote',
+			name: 'Return from footnote to its reference',
+			editorCheckCallback: (checking, editor) => {
+				const cm = cmOf(editor);
+				if (!cm || referenceFor(editor.getValue(), editor.posToOffset(editor.getCursor())) === null) return false;
+				if (!checking) this.returnFromFootnote(cm);
+				return true;
+			},
+		});
+		this.addCommand({
 			id: 'jump-footnote',
 			name: 'Jump between footnote and its reference',
 			editorCallback: (editor) => this.jumpFootnote(editor),
@@ -274,11 +286,87 @@ export default class Aglc4Plugin extends Plugin {
 
 		replaceText(editor, next);
 		const def = scanFootnotes(next).defs.find((d) => d.label === label);
-		if (def) {
-			const pos = editor.offsetToPos(def.contentFrom);
-			editor.setCursor(pos);
-			editor.scrollIntoView({ from: pos, to: pos }, true);
+		if (!def) return;
+
+		const main = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (this.settings.footnoteEditing === 'pane' && !Platform.isPhone && main?.file && main.editor === editor && main.leaf !== this.footnotePane) {
+			// Stay put in the text, just after the new footnote number, and write the footnote in the pane.
+			const ref = scanFootnotes(next).notes.find((n) => n.label === label)?.refs[0];
+			if (ref) editor.setCursor(editor.offsetToPos(ref.to));
+			void this.showInFootnotePane(main, def.contentFrom);
+			return;
 		}
+		const pos = editor.offsetToPos(def.contentFrom);
+		editor.setCursor(pos);
+		editor.scrollIntoView({ from: pos, to: pos }, true);
+	}
+
+	// -----------------------------------------------------------------------------------------------------
+	// Footnote pane
+
+	/** The pane below a note where footnotes are written, and the pane of the note it serves. */
+	private footnotePane: WorkspaceLeaf | null = null;
+	private footnoteMain: WorkspaceLeaf | null = null;
+
+	private isOpen(leaf: WorkspaceLeaf | null): leaf is WorkspaceLeaf {
+		return !!leaf && this.app.workspace.getLeavesOfType('markdown').includes(leaf);
+	}
+
+	/** Show the note in the footnote pane at `offset` and put the cursor there. */
+	private async showInFootnotePane(main: MarkdownView, offset: number) {
+		const file = main.file;
+		if (!file) return;
+		// The pane loads the note from disk: save the reference just inserted first.
+		await main.save();
+		let pane = this.footnotePane;
+		if (!this.isOpen(pane) || pane === main.leaf) {
+			pane = this.app.workspace.createLeafBySplit(main.leaf, 'horizontal');
+			this.footnotePane = pane;
+		}
+		if (!(pane.view instanceof MarkdownView) || pane.view.file !== file) {
+			await pane.openFile(file, { active: false });
+		}
+		this.footnoteMain = main.leaf;
+		const view = pane.view;
+		if (!(view instanceof MarkdownView)) return;
+		this.app.workspace.setActiveLeaf(pane, { focus: true });
+		const pos = view.editor.offsetToPos(offset);
+		view.editor.setCursor(pos);
+		view.editor.scrollIntoView({ from: pos, to: pos }, true);
+		view.editor.focus();
+	}
+
+	/**
+	 * Go back from the footnote at the cursor to just after its reference: in the note's main pane when
+	 * writing in the footnote pane, otherwise in the same editor.
+	 */
+	private returnFromFootnote(cm: EditorView): boolean {
+		let source: MarkdownView | null = null;
+		this.app.workspace.iterateAllLeaves((leaf) => {
+			if (!source && leaf.view instanceof MarkdownView && cmOf(leaf.view.editor) === cm) source = leaf.view;
+		});
+		const view = source as MarkdownView | null;
+		if (!view) return false;
+		const text = view.editor.getValue();
+		const ref = referenceFor(text, view.editor.posToOffset(view.editor.getCursor()));
+		if (ref === null) return false;
+
+		let target: MarkdownView = view;
+		const main = this.footnoteMain;
+		if (view.leaf === this.footnotePane && this.isOpen(main) && main.view instanceof MarkdownView && main.view.file === view.file) {
+			target = main.view;
+		}
+		const pos = target.editor.offsetToPos(ref);
+		this.app.workspace.setActiveLeaf(target.leaf, { focus: true });
+		target.editor.setCursor(pos);
+		target.editor.scrollIntoView({ from: pos, to: pos }, true);
+		target.editor.focus();
+		return true;
+	}
+
+	private vimMode(): boolean {
+		const vault = this.app.vault as unknown as { getConfig?: (key: string) => unknown };
+		return vault.getConfig?.('vimMode') === true;
 	}
 
 	private jumpFootnote(editor: Editor) {

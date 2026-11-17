@@ -23,6 +23,8 @@ export interface Aglc4Settings {
 	useTitle: boolean;
 	headingScheme: HeadingScheme;
 	aglcTopLevel: TopLevel;
+	footnoteEditing: 'pane' | 'note';
+	returnOnFinish: boolean;
 }
 
 export const DEFAULT_SETTINGS: Aglc4Settings = {
@@ -46,6 +48,8 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	useTitle: false,
 	headingScheme: 'plain',
 	aglcTopLevel: 'auto',
+	footnoteEditing: 'pane',
+	returnOnFinish: true,
 };
 
 type Key = keyof Aglc4Settings;
@@ -87,6 +91,8 @@ const GROUPS: Group[] = [
 	{
 		heading: 'Footnotes',
 		items: [
+			{ name: 'Write new footnotes in', desc: 'Where "Insert footnote" puts you to write the footnote. A pane below the note shows the same note at its footnotes, so the text you are writing stays where it is. On phones footnotes are always written in the note.', control: { type: 'dropdown', key: 'footnoteEditing', options: { pane: 'A pane below the note', note: 'The note (jump to the bottom)' } } },
+			{ name: 'Return after a footnote', desc: 'Press Enter after a footnote\'s closing full stop, or Escape anywhere in a footnote, to go back to its reference in the text.', control: { type: 'toggle', key: 'returnOnFinish' } },
 			{ name: 'Keep footnotes at the bottom', desc: 'When you leave a note, move every footnote definition to the bottom of the note in reading order. Text is otherwise untouched.', control: { type: 'toggle', key: 'tidyOnLeave' } },
 			{ name: 'Renumber footnotes', desc: 'Relabel footnotes 1, 2, 3 … in reading order when tidying or inserting.', control: { type: 'toggle', key: 'renumber' } },
 			{ name: 'Convert inline footnotes', desc: 'Turn ^[inline] footnotes into numbered footnotes at the bottom when tidying.', control: { type: 'toggle', key: 'convertInline' } },

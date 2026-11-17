@@ -72,3 +72,26 @@ export function minimalChange(a: string, b: string): { from: number; to: number;
 	while (endA > start && endB > start && a.charCodeAt(endA - 1) === b.charCodeAt(endB - 1)) { endA--; endB--; }
 	return { from: start, to: endA, insert: b.slice(start, endB) };
 }
+
+/**
+ * Where to go back to from the footnote definition at `offset`: just after its first reference in the
+ * text. Null outside a footnote definition or when the footnote is not referenced.
+ */
+export function referenceFor(text: string, offset: number, scan: FootnoteScan = scanFootnotes(text)): number | null {
+	const ctx = footnoteAt(text, offset, scan);
+	if (!ctx || ctx.inline) return null;
+	const note = scan.notes.find((n) => n.def !== null && n.def.contentFrom === ctx.contentFrom);
+	return note?.refs[0]?.to ?? null;
+}
+
+/**
+ * True when `offset` is at the end of a finished footnote definition: after its closing full stop (or
+ * question or exclamation mark), with nothing but whitespace after it in the footnote.
+ */
+export function atFinishedFootnote(text: string, offset: number, scan: FootnoteScan = scanFootnotes(text)): boolean {
+	const ctx = footnoteAt(text, offset, scan);
+	if (!ctx || ctx.inline) return false;
+	const before = text.slice(ctx.contentFrom, offset);
+	const after = text.slice(offset, ctx.contentTo);
+	return after.trim() === '' && /[.?!]$/.test(before.trimEnd()) && before.trim().length > 1;
+}
