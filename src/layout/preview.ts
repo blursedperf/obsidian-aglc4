@@ -45,7 +45,7 @@ class Builder {
 		this.family = cssFontFamily(opts.font);
 	}
 
-	private para(style: ParaStyle, indent = 0, hanging = 0): HTMLElement {
+	private para(style: ParaStyle, indent = 0): HTMLElement {
 		const el = createDiv({ cls: 'aglc-pv-para' });
 		el.setCssStyles({
 			fontFamily: this.family,
@@ -55,7 +55,6 @@ class Builder {
 			fontStyle: style.italic ? 'italic' : 'normal',
 			textAlign: style.center ? 'center' : 'left',
 			paddingLeft: `${indent}pt`,
-			textIndent: hanging ? `-${hanging}pt` : '0',
 		});
 		return el;
 	}
@@ -153,10 +152,11 @@ class Builder {
 					b.items.forEach((item, k) => {
 						item.forEach((blk, j) => {
 							if (j === 0 && blk.t === 'para') {
-								const el = this.para(this.st.body, left, this.st.hanging);
+								// The marker hangs in the indent, as with Word's hanging indent.
+								const el = this.para(this.st.body, left);
 								const marker = el.createSpan({ cls: 'aglc-pv-marker' });
 								marker.setText(b.ordered ? listMarker(level, b.start + k) : ['•', '◦', '▪'][level % 3]!);
-								marker.setCssStyles({ width: `${this.st.hanging}pt` });
+								marker.setCssStyles({ width: `${this.st.hanging}pt`, marginLeft: `-${this.st.hanging}pt` });
 								this.inline(blk.c, el, { italic: false, bold: false }, false);
 								this.add(el, this.st.body);
 							} else {

@@ -1,24 +1,31 @@
-/* Underlines for AGLC4 problems in the editor */
+/* Underlines for AGLC4 problems in the editor, drawn with gradients so they take theme colours. */
 .aglc-issue {
-	text-decoration-line: underline;
-	text-decoration-thickness: 1.5px;
-	text-underline-offset: 3px;
-	text-decoration-skip-ink: none;
+	background-repeat: repeat-x;
+	background-position: left bottom;
+	padding-bottom: 2px;
+}
+
+.aglc-error,
+.aglc-warning {
+	/* A wave: arcs alternately curving down and up, the second set offset by half a period. */
+	background-image:
+		radial-gradient(circle at 50% 0, transparent 1.9px, var(--aglc-underline) 2px, var(--aglc-underline) 2.9px, transparent 3px),
+		radial-gradient(circle at 50% 100%, transparent 1.9px, var(--aglc-underline) 2px, var(--aglc-underline) 2.9px, transparent 3px);
+	background-size: 6px 3px;
+	background-position: 0 100%, 3px 100%;
 }
 
 .aglc-error {
-	text-decoration-style: wavy;
-	text-decoration-color: var(--color-red);
+	--aglc-underline: var(--color-red);
 }
 
 .aglc-warning {
-	text-decoration-style: wavy;
-	text-decoration-color: var(--color-orange);
+	--aglc-underline: var(--color-orange);
 }
 
 .aglc-info {
-	text-decoration-style: dotted;
-	text-decoration-color: var(--color-blue);
+	background-image: radial-gradient(circle, var(--color-blue) 0.9px, transparent 1.3px);
+	background-size: 4px 3px;
 }
 
 /* Next required element, shown faintly after the cursor */
@@ -121,10 +128,10 @@
 }
 
 /* Page preview */
-.aglc-pv-view {
+.workspace-leaf-content[data-type="aglc4-page-preview"] .view-content.aglc-pv-view {
 	display: flex;
 	flex-direction: column;
-	padding: 0 !important;
+	padding: 0;
 	overflow: hidden;
 }
 
@@ -215,7 +222,6 @@
 
 .aglc-pv-marker {
 	display: inline-block;
-	text-indent: 0;
 }
 
 .aglc-pv-code,

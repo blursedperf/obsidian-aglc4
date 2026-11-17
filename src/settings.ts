@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { type App, PluginSettingTab, Setting, type SettingDefinitionItem } from 'obsidian';
 import type Aglc4Plugin from './main';
 
 export interface Aglc4Settings {
@@ -43,99 +43,137 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	useTitle: false,
 };
 
+type Key = keyof Aglc4Settings;
+
+interface Control {
+	name: string;
+	desc?: string;
+	control:
+		| { type: 'toggle'; key: Key }
+		| { type: 'text'; key: Key; placeholder?: string }
+		| { type: 'textarea'; key: Key; rows?: number }
+		| { type: 'slider'; key: Key; min: number; max: number; step: number }
+		| { type: 'dropdown'; key: Key; options: Record<string, string> };
+}
+
+interface Group {
+	heading: string;
+	items: Control[];
+}
+
+/** Every setting, defined once: rendered declaratively on Obsidian 1.13+ and by display() before that. */
+const GROUPS: Group[] = [
+	{
+		heading: 'Checking',
+		items: [
+			{ name: 'Underline problems', desc: 'Underline incorrect or incomplete citations in footnotes as you write. Hover an underline for the rule and a fix.', control: { type: 'toggle', key: 'underline' } },
+			{ name: 'Show suggestions', desc: 'Also mark lesser points with a dotted underline, such as text that may be an unfinished citation.', control: { type: 'toggle', key: 'showInfo' } },
+			{ name: 'Disabled rules', desc: 'Rule identifiers to ignore, one per line. Hover an underline to see its rule, or use "Ignore this rule" there.', control: { type: 'textarea', key: 'disabledRules', rows: 4 } },
+		],
+	},
+	{
+		heading: 'Next element',
+		items: [
+			{ name: 'Inline hint', desc: 'Show the next required element of the citation you are typing, faintly after the cursor.', control: { type: 'toggle', key: 'ghostHint' } },
+			{ name: 'Suggest as you type', desc: 'Open the list of next elements after a space, comma, bracket or closing italics in a footnote. The "Suggest next citation element" command opens it at any time.', control: { type: 'toggle', key: 'autoSuggest' } },
+			{ name: 'Status bar', desc: 'Show the number of problems in the note and the next element of the citation at the cursor.', control: { type: 'toggle', key: 'statusBar' } },
+		],
+	},
+	{
+		heading: 'Footnotes',
+		items: [
+			{ name: 'Keep footnotes at the bottom', desc: 'When you leave a note, move every footnote definition to the bottom of the note in reading order. Text is otherwise untouched.', control: { type: 'toggle', key: 'tidyOnLeave' } },
+			{ name: 'Renumber footnotes', desc: 'Relabel footnotes 1, 2, 3 … in reading order when tidying or inserting.', control: { type: 'toggle', key: 'renumber' } },
+			{ name: 'Convert inline footnotes', desc: 'Turn ^[inline] footnotes into numbered footnotes at the bottom when tidying.', control: { type: 'toggle', key: 'convertInline' } },
+			{ name: 'Keep cross-references in sync', desc: 'When footnotes are added, removed or reordered, update "(n X)" so it still points at the same footnote.', control: { type: 'toggle', key: 'syncCrossRefs' } },
+		],
+	},
+	{
+		heading: 'Export and page preview',
+		items: [
+			{ name: 'Export folder', desc: 'Vault folder for exported files. Leave empty to save next to the note.', control: { type: 'text', key: 'exportFolder', placeholder: 'Exports' } },
+			{ name: 'Font', control: { type: 'text', key: 'font' } },
+			{ name: 'Body text size', desc: 'In points.', control: { type: 'slider', key: 'fontSize', min: 9, max: 16, step: 0.5 } },
+			{ name: 'Footnote text size', desc: 'In points.', control: { type: 'slider', key: 'footnoteSize', min: 7, max: 14, step: 0.5 } },
+			{ name: 'Line spacing', control: { type: 'dropdown', key: 'lineSpacing', options: { '1': 'Single', '1.5': '1.5 lines', '2': 'Double' } } },
+			{ name: 'Typographic quotation marks', desc: 'Export straight quotes as ‘curly’ quotes, as in a published AGLC4 document.', control: { type: 'toggle', key: 'smartQuotes' } },
+			{ name: 'Page numbers', desc: 'Number the pages of Word exports in the footer.', control: { type: 'toggle', key: 'pageNumbers' } },
+			{ name: 'Title from file name', desc: 'Add the note\'s name as a title when the note has no top-level heading.', control: { type: 'toggle', key: 'useTitle' } },
+		],
+	},
+];
+
 export class Aglc4SettingTab extends PluginSettingTab {
 	constructor(app: App, private plugin: Aglc4Plugin) {
 		super(app, plugin);
 	}
 
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		return GROUPS.map((g) => ({ type: 'group', heading: g.heading, items: g.items.map((i) => ({ ...i, control: { ...i.control } })) }));
+	}
+
+	/** Values as the controls show them: some settings are stored in another form. */
+	getControlValue(key: string): unknown {
+		const s = this.plugin.settings;
+		if (key === 'disabledRules') return s.disabledRules.join('\n');
+		if (key === 'lineSpacing') return String(s.lineSpacing);
+		return s[key as Key];
+	}
+
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		const s = this.plugin.settings as unknown as Record<string, unknown>;
+		switch (key) {
+			case 'disabledRules':
+				s.disabledRules = String(value).split(/\s+/).map((x) => x.trim()).filter(Boolean);
+				break;
+			case 'lineSpacing':
+				s.lineSpacing = Number(value);
+				break;
+			case 'exportFolder':
+				s.exportFolder = String(value).trim().replace(/^\/+|\/+$/g, '');
+				break;
+			case 'font':
+				s.font = String(value).trim() || DEFAULT_SETTINGS.font;
+				break;
+			default:
+				s[key] = value;
+		}
+		await this.plugin.saveSettings();
+	}
+
+	/** Fallback for Obsidian before 1.13, which has no declarative settings. */
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		const s = this.plugin.settings;
-		const save = async () => { await this.plugin.saveSettings(); };
-
-		new Setting(containerEl).setName('Checking').setHeading();
-		new Setting(containerEl)
-			.setName('Underline problems')
-			.setDesc('Underline incorrect or incomplete citations in footnotes as you write. Hover an underline for the rule and a fix.')
-			.addToggle((t) => t.setValue(s.underline).onChange(async (v) => { s.underline = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Show suggestions')
-			.setDesc('Also mark lesser points with a dotted underline, such as text that may be an unfinished citation.')
-			.addToggle((t) => t.setValue(s.showInfo).onChange(async (v) => { s.showInfo = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Disabled rules')
-			.setDesc('Rule identifiers to ignore, one per line. Hover an underline to see its rule, or use "Ignore this rule" there.')
-			.addTextArea((t) => {
-				t.setValue(s.disabledRules.join('\n')).onChange(async (v) => {
-					s.disabledRules = v.split(/\s+/).map((x) => x.trim()).filter(Boolean);
-					await save();
-				});
-				t.inputEl.rows = 4;
-			});
-
-		new Setting(containerEl).setName('Next element').setHeading();
-		new Setting(containerEl)
-			.setName('Inline hint')
-			.setDesc('Show the next required element of the citation you are typing, faintly after the cursor.')
-			.addToggle((t) => t.setValue(s.ghostHint).onChange(async (v) => { s.ghostHint = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Suggest as you type')
-			.setDesc('Open the list of next elements after a space, comma, bracket or closing italics in a footnote. The "Suggest next citation element" command opens it at any time.')
-			.addToggle((t) => t.setValue(s.autoSuggest).onChange(async (v) => { s.autoSuggest = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Status bar')
-			.setDesc('Show the number of problems in the note and the next element of the citation at the cursor.')
-			.addToggle((t) => t.setValue(s.statusBar).onChange(async (v) => { s.statusBar = v; await save(); }));
-
-		new Setting(containerEl).setName('Footnotes').setHeading();
-		new Setting(containerEl)
-			.setName('Keep footnotes at the bottom')
-			.setDesc('When you leave a note, move every footnote definition to the bottom of the note in reading order. Text is otherwise untouched.')
-			.addToggle((t) => t.setValue(s.tidyOnLeave).onChange(async (v) => { s.tidyOnLeave = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Renumber footnotes')
-			.setDesc('Relabel footnotes 1, 2, 3 … in reading order when tidying or inserting.')
-			.addToggle((t) => t.setValue(s.renumber).onChange(async (v) => { s.renumber = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Convert inline footnotes')
-			.setDesc('Turn ^[inline] footnotes into numbered footnotes at the bottom when tidying.')
-			.addToggle((t) => t.setValue(s.convertInline).onChange(async (v) => { s.convertInline = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Keep cross-references in sync')
-			.setDesc('When footnotes are added, removed or reordered, update "(n X)" so it still points at the same footnote.')
-			.addToggle((t) => t.setValue(s.syncCrossRefs).onChange(async (v) => { s.syncCrossRefs = v; await save(); }));
-
-		new Setting(containerEl).setName('Export').setHeading();
-		new Setting(containerEl)
-			.setName('Export folder')
-			.setDesc('Vault folder for exported files. Leave empty to save next to the note.')
-			.addText((t) => t.setPlaceholder('Exports').setValue(s.exportFolder).onChange(async (v) => { s.exportFolder = v.trim().replace(/^\/+|\/+$/g, ''); await save(); }));
-		new Setting(containerEl)
-			.setName('Font')
-			.addText((t) => t.setValue(s.font).onChange(async (v) => { s.font = v.trim() || DEFAULT_SETTINGS.font; await save(); }));
-		new Setting(containerEl)
-			.setName('Body text size')
-			.setDesc('In points.')
-			.addSlider((sl) => sl.setLimits(9, 16, 0.5).setValue(s.fontSize).onChange(async (v) => { s.fontSize = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Footnote text size')
-			.setDesc('In points.')
-			.addSlider((sl) => sl.setLimits(7, 14, 0.5).setValue(s.footnoteSize).onChange(async (v) => { s.footnoteSize = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Line spacing')
-			.addDropdown((d) => d.addOptions({ '1': 'Single', '1.5': '1.5 lines', '2': 'Double' }).setValue(String(s.lineSpacing)).onChange(async (v) => { s.lineSpacing = Number(v); await save(); }));
-		new Setting(containerEl)
-			.setName('Typographic quotation marks')
-			.setDesc('Export straight quotes as ‘curly’ quotes, as in a published AGLC4 document.')
-			.addToggle((t) => t.setValue(s.smartQuotes).onChange(async (v) => { s.smartQuotes = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Page numbers')
-			.setDesc('Number the pages of Word exports in the footer.')
-			.addToggle((t) => t.setValue(s.pageNumbers).onChange(async (v) => { s.pageNumbers = v; await save(); }));
-		new Setting(containerEl)
-			.setName('Title from file name')
-			.setDesc('Add the note\'s name as a title when the note has no top-level heading.')
-			.addToggle((t) => t.setValue(s.useTitle).onChange(async (v) => { s.useTitle = v; await save(); }));
+		for (const g of GROUPS) {
+			new Setting(containerEl).setName(g.heading).setHeading();
+			for (const item of g.items) {
+				const row = new Setting(containerEl).setName(item.name);
+				if (item.desc) row.setDesc(item.desc);
+				const c = item.control;
+				const value = this.getControlValue(c.key);
+				const set = (v: unknown) => { void this.setControlValue(c.key, v); };
+				switch (c.type) {
+					case 'toggle':
+						row.addToggle((t) => t.setValue(value as boolean).onChange(set));
+						break;
+					case 'text':
+						row.addText((t) => t.setPlaceholder(c.placeholder ?? '').setValue(value as string).onChange(set));
+						break;
+					case 'textarea':
+						row.addTextArea((t) => {
+							t.setValue(value as string).onChange(set);
+							t.inputEl.rows = c.rows ?? 3;
+						});
+						break;
+					case 'slider':
+						row.addSlider((sl) => sl.setLimits(c.min, c.max, c.step).setValue(value as number).onChange(set));
+						break;
+					case 'dropdown':
+						row.addDropdown((d) => d.addOptions(c.options).setValue(value as string).onChange(set));
+						break;
+				}
+			}
+		}
 	}
 }
