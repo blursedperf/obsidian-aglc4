@@ -650,6 +650,19 @@ function publicationChecks(m: ElementMatch): Issue[] {
 	return out;
 }
 
+/** A URL in angle brackets, for material accessed online (AGLC4 ch 7). */
+const urlElement = (optional: boolean): ElementSpec => ({
+	id: 'url',
+	label: 'URL',
+	hint: 'In angle brackets: <https://…>',
+	insert: ' <${https://}>',
+	re: S('\\s(?:<[^>\\s]+>|https?:\\/\\/[^\\s;]+?)(?=[.;]?$|;|\\s\\()'),
+	optional,
+	check: (m) => (m.text.trim().startsWith('<')
+		? []
+		: [issue(m, 'url-brackets', 'error', 'URLs go in angle brackets.', 'ch 7', { from: bodyStart(m), to: m.to, insert: `<${m.text.trim()}>` }, bodyStart(m), m.to)]),
+});
+
 const BOOK: SourceSpec = {
 	kind: 'book',
 	label: 'Book or report',
@@ -677,6 +690,7 @@ const BOOK: SourceSpec = {
 			hint: 'Page (" 45") or paragraph (" [4.12]") after a space',
 		},
 		{ ...pinpoints, id: 'pinpoint-more', insert: ', ${pinpoint}', re: S(`,\\s${BOOK_PIN}`), label: 'Further pinpoint', hint: 'Another page or paragraph' },
+		urlElement(true),
 		shortTitle(),
 	],
 };
@@ -700,7 +714,8 @@ const NEWSPAPER: SourceSpec = {
 			re: S(`\\s\\((?:[^(),\\n]+,\\s)?${DATE}\\)`),
 		},
 		{ id: 'page', label: 'Page', hint: 'Page number (print editions)', insert: ' ${1}', re: S('\\s\\d+'), optional: true },
-		{ id: 'url', label: 'URL', hint: 'For online articles: <https://…>', insert: ' <${https://}>', re: S('\\s<[^>\\s]+>'), optional: true },
+		{ ...urlElement(true), hint: 'For online articles: <https://…>' },
+		shortTitle(),
 	],
 };
 
@@ -729,16 +744,8 @@ const INTERNET: SourceSpec = {
 			re: S(`\\s${PIN}(?=\\s<)`),
 			optional: true,
 		},
-		{
-			id: 'url',
-			label: 'URL',
-			hint: 'In angle brackets: <https://…>',
-			insert: ' <${https://}>',
-			re: S('\\s(?:<[^>\\s]+>|https?:\\/\\/\\S+?)(?=[.;]?$|;)'),
-			check: (m) => (m.text.trim().startsWith('<')
-				? []
-				: [issue(m, 'url-brackets', 'error', 'URLs go in angle brackets.', 'ch 7', { from: bodyStart(m), to: m.to, insert: `<${m.text.trim()}>` }, bodyStart(m), m.to)]),
-		},
+		urlElement(false),
+		shortTitle(),
 	],
 };
 

@@ -36,6 +36,18 @@ describe('recognises correct AGLC4 citations without issues', () => {
 		});
 	}
 
+	it('allows a short title after a URL', () => {
+		for (const t of [
+			'Department of Health, *Review of the Act* (Issues Paper, 26 May 2026) <https://example.gov.au/review.pdf> (\u2018*Issues Paper*\u2019).',
+			'Jane Smith, \'Title of Page\' (Web Page, 1 May 2020) <https://example.org/page> (\'*Title of Page*\').',
+			'Jane Smith, \'Headline\', *The Age* (online, 5 May 2020) <https://theage.com.au/a> (\'*Headline*\').',
+			'Law Council, *Annual Report* (Report, 2020) 12 <https://example.org/r.pdf>.',
+		]) {
+			expect([t, rules(t)]).toEqual([t, []]);
+		}
+		expect(rules('Department of Health, *Review of the Act* (Issues Paper, 26 May 2026) https://example.gov.au/review.pdf (\'*Issues Paper*\').')).toContain('url-brackets');
+	});
+
 	it('handles several sources with signals', () => {
 		const t = 'See, eg, *Mabo v Queensland (No 2)* (1992) 175 CLR 1; *Native Title Act 1993* (Cth) s 223.';
 		expect(kinds(t)).toEqual(['case-reported', 'legislation']);
