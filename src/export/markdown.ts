@@ -19,7 +19,11 @@ export type Inline =
 	| { t: 'br' };
 
 export type Block =
-	| { t: 'heading'; level: number; c: Inline[] }
+	/**
+	 * A heading. With AGLC4 headings, `number` is its number ("I", "(a)"), `styleLevel` the heading style to
+	 * use (its AGLC4 level), and `title` marks a top heading used as the document title.
+	 */
+	| { t: 'heading'; level: number; c: Inline[]; number?: string; styleLevel?: number; title?: boolean }
 	| { t: 'para'; c: Inline[] }
 	| { t: 'quote'; blocks: Block[] }
 	| { t: 'list'; ordered: boolean; start: number; items: Block[][] }

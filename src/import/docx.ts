@@ -1,0 +1,432 @@
+/**
+ * Import a Word document as a note. Footnotes and endnotes become Markdown footnotes at the bottom of the
+ * note, numbered in reading order. Italics and bold (direct or from character and paragraph styles),
+ * strikethrough, highlights, headings, lists, block quotations, tables and links are kept. Fields
+ * (Zotero/EndNote citations, cross-references) keep the text Word displays. Tracked insertions are
+ * accepted and deletions dropped.
+ */
+import { strFromU8, unzipSync } from 'fflate';
+import { hasTypedNumber, stripTypedNumber } from '../layout/headings';
+import { type XmlElement, find, findAll, isElement, kid, kids, parseXml } from './xml';
+
+export interface ImportResult {
+	markdown: string;
+	footnotes: number;
+	/** Things that were not imported, for the user. */
+	warnings: string[];
+	/** Headings whose typed or automatic numbers were removed. */
+	numberedHeadings: number;
+}
+
+interface Fmt {
+	i: boolean;
+	b: boolean;
+	strike: boolean;
+	mark: boolean;
+	smallCaps: boolean;
+}
+
+interface Seg {
+	text: string;
+	fmt: Fmt;
+	link?: string;
+}
+
+type Piece = Seg | { fn: number };
+
+interface StyleDef {
+	type: string;
+	name: string;
+	basedOn?: string;
+	rPr?: XmlElement;
+	pPr?: XmlElement;
+}
+
+const W = (name: string) => `w:${name}`;
+const val = (el: XmlElement | undefined) => el?.attrs['w:val'];
+
+/** A toggle property (w:b, w:i …): present means on unless its value says off. */
+function toggle(rPr: XmlElement | undefined, name: string): boolean | undefined {
+	const el = kid(rPr, W(name));
+	if (!el) return undefined;
+	const v = val(el);
+	return !(v === 'false' || v === '0' || v === 'off' || v === 'none');
+}
+
+class Converter {
+	private styles = new Map<string, StyleDef>();
+	private numFormats = new Map<string, Map<string, string>>();
+	private rels = new Map<string, string>();
+	private notes = new Map<string, XmlElement>();
+	private endnotes = new Map<string, XmlElement>();
+	private noteOrder: { kind: 'footnote' | 'endnote'; id: string }[] = [];
+	private hasTitle = false;
+	readonly warnings = new Set<string>();
+	numberedHeadings = 0;
+
+	constructor(private files: Record<string, Uint8Array>) {
+		const xml = (path: string) => (files[path] ? parseXml(strFromU8(files[path])) : undefined);
+		const styles = xml('word/styles.xml');
+		for (const s of kids(kid(styles, W('styles')), W('style'))) {
+			const id = s.attrs['w:styleId'];
+			if (!id) continue;
+			this.styles.set(id, {
+				type: s.attrs['w:type'] ?? '',
+				name: (val(kid(s, W('name'))) ?? id).toLowerCase(),
+				basedOn: val(kid(s, W('basedOn'))),
+				rPr: kid(s, W('rPr')),
+				pPr: kid(s, W('pPr')),
+			});
+		}
+
+		const numbering = kid(xml('word/numbering.xml'), W('numbering'));
+		const abstract = new Map<string, Map<string, string>>();
+		for (const a of kids(numbering, W('abstractNum'))) {
+			const levels = new Map<string, string>();
+			for (const l of kids(a, W('lvl'))) levels.set(l.attrs['w:ilvl'] ?? '0', val(kid(l, W('numFmt'))) ?? 'decimal');
+			abstract.set(a.attrs['w:abstractNumId'] ?? '', levels);
+		}
+		for (const n of kids(numbering, W('num'))) {
+			const levels = new Map(abstract.get(val(kid(n, W('abstractNumId'))) ?? '') ?? []);
+			for (const o of kids(n, W('lvlOverride'))) {
+				const fmt = val(kid(kid(o, W('lvl')), W('numFmt')));
+				if (fmt) levels.set(o.attrs['w:ilvl'] ?? '0', fmt);
+			}
+			this.numFormats.set(n.attrs['w:numId'] ?? '', levels);
+		}
+
+		for (const r of kids(kid(xml('word/_rels/document.xml.rels'), 'Relationships'), 'Relationship')) {
+			if (r.attrs.Id && r.attrs.Target) this.rels.set(r.attrs.Id, r.attrs.Target);
+		}
+		for (const [file, map, tag] of [['word/footnotes.xml', this.notes, 'footnote'], ['word/endnotes.xml', this.endnotes, 'endnote']] as const) {
+			for (const n of kids(kid(xml(file), W(`${tag}s`)), W(tag))) {
+				const type = n.attrs['w:type'];
+				if (type === 'separator' || type === 'continuationSeparator' || type === 'continuationNotice') continue;
+				map.set(n.attrs['w:id'] ?? '', n);
+			}
+		}
+	}
+
+	/** Follow a style and the styles it is based on. */
+	private chain(id: string | undefined): StyleDef[] {
+		const out: StyleDef[] = [];
+		const seen = new Set<string>();
+		while (id && !seen.has(id)) {
+			seen.add(id);
+			const s = this.styles.get(id);
+			if (!s) break;
+			out.push(s);
+			id = s.basedOn;
+		}
+		return out;
+	}
+
+	private styleToggle(id: string | undefined, name: string): boolean | undefined {
+		for (const s of this.chain(id)) {
+			const t = toggle(s.rPr, name);
+			if (t !== undefined) return t;
+		}
+		return undefined;
+	}
+
+	private fmt(rPr: XmlElement | undefined, paraStyle: string | undefined, usePara: boolean): Fmt {
+		const charStyle = val(kid(rPr, W('rStyle')));
+		const get = (name: string) => toggle(rPr, name) ?? this.styleToggle(charStyle, name) ?? (usePara ? this.styleToggle(paraStyle, name) : undefined) ?? false;
+		const highlight = val(kid(rPr, W('highlight')));
+		const charName = this.styles.get(charStyle ?? '')?.name ?? '';
+		return {
+			i: get('i') || charName === 'emphasis',
+			b: get('b') || charName === 'strong',
+			strike: get('strike') || get('dstrike'),
+			mark: !!highlight && highlight !== 'none',
+			smallCaps: get('smallCaps'),
+		};
+	}
+
+	/** Heading level of a paragraph style (1–6), 0 for the title style, or null. */
+	private headingLevel(styleId: string | undefined, pPr: XmlElement | undefined): number | null {
+		for (const s of this.chain(styleId)) {
+			if (s.name === 'title') return 0;
+			const m = /^heading (\d)$/.exec(s.name);
+			if (m) return Math.min(6, Number(m[1]));
+		}
+		const outline = val(kid(pPr, W('outlineLvl'))) ?? this.chain(styleId).map((s) => val(kid(s.pPr, W('outlineLvl')))).find((v) => v !== undefined);
+		if (outline !== undefined && Number(outline) < 6) return Number(outline) + 1;
+		return null;
+	}
+
+	private paraProp(pPr: XmlElement | undefined, styleId: string | undefined, name: string): XmlElement | undefined {
+		const direct = kid(pPr, W(name));
+		if (direct) return direct;
+		for (const s of this.chain(styleId)) {
+			const el = kid(s.pPr, W(name));
+			if (el) return el;
+		}
+		return undefined;
+	}
+
+	/** Collect the runs of a paragraph (or hyperlink, insertion …) as text pieces and footnote markers. */
+	private inline(el: XmlElement, paraStyle: string | undefined, usePara: boolean, inNote: boolean, out: Piece[], field: { depth: number; skip: boolean[] }, link?: string): void {
+		for (const c of el.children) {
+			if (!isElement(c)) continue;
+			switch (c.name) {
+				case 'w:r':
+					this.run(c, paraStyle, usePara, inNote, out, field, link);
+					break;
+				case 'w:hyperlink': {
+					const id = c.attrs['r:id'];
+					const target = id ? this.rels.get(id) : undefined;
+					this.inline(c, paraStyle, usePara, inNote, out, field, target ?? link);
+					break;
+				}
+				case 'w:ins':
+				case 'w:smartTag':
+				case 'w:customXml':
+				case 'w:fldSimple':
+				case 'w:sdtContent':
+					this.inline(c, paraStyle, usePara, inNote, out, field, link);
+					break;
+				case 'w:sdt':
+					this.inline(kid(c, W('sdtContent')) ?? c, paraStyle, usePara, inNote, out, field, link);
+					break;
+				case 'w:del':
+					this.warnings.add('Tracked deletions were left out and insertions accepted.');
+					break;
+				case 'm:oMath':
+				case 'm:oMathPara':
+					this.warnings.add('Equations were left out.');
+					break;
+				default:
+					break;
+			}
+		}
+	}
+
+	private run(r: XmlElement, paraStyle: string | undefined, usePara: boolean, inNote: boolean, out: Piece[], field: { depth: number; skip: boolean[] }, link?: string): void {
+		const rPr = kid(r, W('rPr'));
+		const fmt = this.fmt(rPr, paraStyle, usePara);
+		const push = (text: string) => {
+			if (field.skip.some(Boolean)) return;
+			out.push({ text, fmt, link });
+		};
+		for (const c of r.children) {
+			if (!isElement(c)) continue;
+			switch (c.name) {
+				case 'w:fldChar': {
+					const t = c.attrs['w:fldCharType'];
+					if (t === 'begin') { field.skip.push(true); field.depth++; }
+					else if (t === 'separate') { field.skip[field.skip.length - 1] = false; }
+					else if (t === 'end') { field.skip.pop(); field.depth--; }
+					break;
+				}
+				case 'w:t': push(c.children.filter((x): x is string => !isElement(x)).join('')); break;
+				case 'w:tab': push('\t'); break;
+				case 'w:br': if (c.attrs['w:type'] !== 'page' && c.attrs['w:type'] !== 'column') push('\n'); break;
+				case 'w:cr': push('\n'); break;
+				case 'w:noBreakHyphen': push('-'); break;
+				case 'w:sym': {
+					const code = c.attrs['w:char'];
+					if (code) push(String.fromCodePoint(parseInt(code, 16) & 0xffff || 0x20));
+					break;
+				}
+				case 'w:footnoteReference':
+				case 'w:endnoteReference': {
+					if (inNote || field.skip.some(Boolean)) break;
+					const kind = c.name === 'w:footnoteReference' ? 'footnote' : 'endnote';
+					this.noteOrder.push({ kind, id: c.attrs['w:id'] ?? '' });
+					out.push({ fn: this.noteOrder.length });
+					break;
+				}
+				case 'w:drawing':
+				case 'w:pict':
+				case 'w:object':
+					this.warnings.add('Images and embedded objects were left out.');
+					break;
+				default:
+					break;
+			}
+		}
+	}
+
+	/** Pieces to Markdown inline text. */
+	private markdown(pieces: Piece[]): string {
+		// Merge neighbouring text with the same formatting and link.
+		const merged: Piece[] = [];
+		for (const p of pieces) {
+			const last = merged[merged.length - 1];
+			if ('text' in p && last && 'text' in last && sameFmt(last.fmt, p.fmt) && last.link === p.link) last.text += p.text;
+			else merged.push('fn' in p ? p : { ...p });
+		}
+		let out = '';
+		for (const p of merged) {
+			if ('fn' in p) { out += `[^${p.fn}]`; continue; }
+			out += this.formatSeg(p, out);
+		}
+		return out;
+	}
+
+	private formatSeg(s: Seg, before: string): string {
+		let text = s.text;
+		if (s.link && !/^#/.test(s.link)) {
+			const shown = text.trim();
+			if (shown === s.link || shown === s.link.replace(/^mailto:/, '')) {
+				// A URL shown as itself: keep it as text, so AGLC4 "<https://…>" survives.
+				text = shown;
+			} else {
+				return wrap(`[${escapeMd(text).replace(/[[\]]/g, '\\$&')}](${s.link.replace(/[()]/g, encodeURIComponent)})`, s.fmt);
+			}
+		}
+		const lead = /^\s*/.exec(text)![0];
+		const trail = /\s*$/.exec(text.slice(lead.length))![0];
+		const core = text.slice(lead.length, text.length - trail.length);
+		if (!core) return text;
+		// Escaping depends on what precedes the text (eg a "[" before "^").
+		const escaped = escapeMd(core, before + lead);
+		return lead + wrap(escaped, s.fmt) + trail;
+	}
+
+	/** Convert a paragraph to a Markdown block. */
+	private paragraph(p: XmlElement, inNote: boolean): { kind: 'heading' | 'list' | 'quote' | 'para'; text: string; level: number; ordered?: boolean } | null {
+		const pPr = kid(p, W('pPr'));
+		const styleId = val(kid(pPr, W('pStyle')));
+		const heading = inNote ? null : this.headingLevel(styleId, pPr);
+		const pieces: Piece[] = [];
+		this.inline(p, styleId, heading === null, inNote, pieces, { depth: 0, skip: [] });
+		let text = this.markdown(pieces);
+
+		if (heading !== null) {
+			const numPr = this.paraProp(pPr, styleId, 'numPr');
+			if (numPr && val(kid(numPr, W('numId'))) !== '0') this.numberedHeadings++;
+			if (hasTypedNumber(text)) { text = stripTypedNumber(text); this.numberedHeadings++; }
+			text = text.replace(/\t/g, ' ').replace(/\n/g, ' ').trim();
+			if (!text) return null;
+			const level = heading === 0 ? 1 : Math.min(6, heading + (this.hasTitle ? 1 : 0));
+			return { kind: 'heading', text, level };
+		}
+		text = text.replace(/\t/g, ' ').replace(/[ \u00a0]+$/g, '');
+		if (!text.trim()) return null;
+
+		const numPr = inNote ? undefined : this.paraProp(pPr, styleId, 'numPr');
+		const numId = val(kid(numPr, W('numId')));
+		if (numPr && numId && numId !== '0') {
+			const ilvl = val(kid(numPr, W('ilvl'))) ?? '0';
+			const fmt = this.numFormats.get(numId)?.get(ilvl) ?? 'bullet';
+			return { kind: 'list', text: text.trim(), level: Number(ilvl), ordered: fmt !== 'bullet' && fmt !== 'none' };
+		}
+		if (!inNote) {
+			const name = this.chain(styleId).map((s) => s.name).join(' ');
+			const ind = this.paraProp(pPr, styleId, 'ind');
+			const left = Number(ind?.attrs['w:left'] ?? ind?.attrs['w:start'] ?? 0);
+			if (/quote|block text|extract/.test(name) || left >= 567) return { kind: 'quote', text: text.trim(), level: 0 };
+		}
+		return { kind: 'para', text: text.trim(), level: 0 };
+	}
+
+	private table(tbl: XmlElement): string {
+		const rows = kids(tbl, W('tr')).map((tr) => kids(tr, W('tc')).map((tc) =>
+			kids(tc, W('p')).map((p) => this.paragraph(p, false)?.text ?? '').filter(Boolean).join('<br>').replace(/\|/g, '\\|').replace(/\n/g, '<br>')));
+		if (rows.length === 0) return '';
+		const width = Math.max(...rows.map((r) => r.length));
+		const line = (r: string[]) => `| ${Array.from({ length: width }, (_, i) => r[i] ?? '').join(' | ')} |`;
+		return [line(rows[0]!), `| ${Array.from({ length: width }, () => '---').join(' | ')} |`, ...rows.slice(1).map(line)].join('\n');
+	}
+
+	convert(body: XmlElement): string {
+		// Word defines a Title style whether or not it is used: what matters is a paragraph using it.
+		this.hasTitle = findAll(body, W('pStyle')).some((ps) => this.chain(val(ps)).some((st) => st.name === 'title'));
+		const blocks: { kind: string; text: string }[] = [];
+		const walk = (el: XmlElement) => {
+			for (const c of kids(el)) {
+				if (c.name === 'w:p') {
+					const b = this.paragraph(c, false);
+					if (!b) continue;
+					if (b.kind === 'heading') blocks.push({ kind: 'heading', text: `${'#'.repeat(b.level)} ${b.text}` });
+					else if (b.kind === 'list') blocks.push({ kind: 'list', text: `${'    '.repeat(b.level)}${b.ordered ? '1.' : '-'} ${b.text.replace(/\n/g, `\n${'    '.repeat(b.level + 1)}`)}` });
+					else if (b.kind === 'quote') blocks.push({ kind: 'quote', text: `> ${b.text.replace(/\n/g, '\n> ')}` });
+					else blocks.push({ kind: 'para', text: b.text });
+				} else if (c.name === 'w:tbl') {
+					const t = this.table(c);
+					if (t) blocks.push({ kind: 'table', text: t });
+				} else if (c.name === 'w:sdt') {
+					walk(kid(c, W('sdtContent')) ?? c);
+				}
+			}
+		};
+		walk(body);
+
+		// Lists stay together; consecutive quotation paragraphs stay in one quotation.
+		let md = '';
+		blocks.forEach((b, i) => {
+			const prev = blocks[i - 1];
+			if (prev) md += prev.kind === b.kind && (b.kind === 'list') ? '\n' : prev.kind === 'quote' && b.kind === 'quote' ? '\n>\n' : '\n\n';
+			md += b.text;
+		});
+
+		const defs = this.noteOrder.map((ref, i) => {
+			const note = (ref.kind === 'footnote' ? this.notes : this.endnotes).get(ref.id);
+			if (!note) return `[^${i + 1}]: `;
+			const paras = kids(note, W('p'))
+				.map((p) => this.paragraph(p, true)?.text ?? '')
+				.filter((t) => t.length > 0);
+			const text = paras.join('\n\n').replace(/^\s+/, '').replace(/\n/g, '\n    ').replace(/\n {4}\n/g, '\n\n');
+			return `[^${i + 1}]: ${text}`;
+		});
+		if (this.endnotes.size > 0 && this.noteOrder.some((r) => r.kind === 'endnote')) this.warnings.add('Endnotes were converted to footnotes.');
+		return `${md.trim()}\n${defs.length > 0 ? `\n${defs.join('\n')}\n` : ''}`;
+	}
+
+	get footnoteCount(): number {
+		return this.noteOrder.length;
+	}
+}
+
+function sameFmt(a: Fmt, b: Fmt): boolean {
+	return a.i === b.i && a.b === b.b && a.strike === b.strike && a.mark === b.mark && a.smallCaps === b.smallCaps;
+}
+
+function wrap(s: string, f: Fmt): string {
+	let out = s;
+	if (f.i && f.b) out = `***${out}***`;
+	else if (f.i) out = `*${out}*`;
+	else if (f.b) out = `**${out}**`;
+	if (f.strike) out = `~~${out}~~`;
+	if (f.mark) out = `==${out}==`;
+	return out;
+}
+
+/**
+ * Escape characters Markdown would read as formatting. Brackets are left alone so citations such as
+ * "[2020] HCA 3" stay readable; only "[^", which would start a footnote, is escaped.
+ */
+function escapeMd(s: string, before = ''): string {
+	let out = s
+		.replace(/\\/g, '\\\\')
+		.replace(/([*`$])/g, '\\$1')
+		.replace(/(^|[^\w])_|_(?=[^\w]|$)/g, (m) => m.replace('_', '\\_'))
+		.replace(/~~/g, '\\~~')
+		.replace(/==/g, '\\==')
+		.replace(/\[\^/g, '\\[^')
+		.replace(/%%/g, '\\%%');
+	// URLs keep their underscores.
+	out = out.replace(/https?:\/\/\S+/g, (u) => u.replace(/\\_/g, '_'));
+	if (/(^|\n)$/.test(before)) out = out.replace(/^(#{1,6}\s|>|[-+]\s|\d+[.)]\s)/, '\\$1');
+	if (before.endsWith('[') && out.startsWith('^')) out = `\\${out}`;
+	return out;
+}
+
+/** Convert a .docx file. */
+export function importDocx(data: Uint8Array): ImportResult {
+	let files: Record<string, Uint8Array>;
+	try {
+		files = unzipSync(data, { filter: (f) => f.name.startsWith('word/') || f.name === '_rels/.rels' });
+	} catch {
+		throw new Error('This is not a Word document (.docx), or it is damaged.');
+	}
+	const main = files['word/document.xml'];
+	if (!main) throw new Error('This file has no Word document inside it.');
+	const conv = new Converter(files);
+	const body = find(parseXml(strFromU8(main)), W('body'));
+	if (!body) throw new Error('The Word document has no body.');
+	const markdown = conv.convert(body);
+	return { markdown, footnotes: conv.footnoteCount, warnings: [...conv.warnings], numberedHeadings: conv.numberedHeadings };
+}

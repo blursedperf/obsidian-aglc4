@@ -9,7 +9,8 @@ import { editorInfoField } from 'obsidian';
 import { nextRequired } from '../aglc/citation';
 import { type DocumentAnalysis, analyseDocument } from '../aglc/document';
 import type { Issue } from '../aglc/types';
-import { footnoteKeys, remapCrossReferences, scanFootnotes, type FootnoteScan } from '../footnotes';
+import { excludedRanges, footnoteKeys, remapCrossReferences, scanFootnotes, type FootnoteScan } from '../footnotes';
+import { type TopLevel, hasTypedNumber, numberHeadings } from '../layout/headings';
 import type { Aglc4Settings } from '../settings';
 import { footnoteAt, minimalChange } from './context';
 
@@ -32,6 +33,36 @@ class HintWidget extends WidgetType {
 		return el;
 	}
 	ignoreEvent(): boolean { return true; }
+}
+
+/** A heading's AGLC4 number, shown faintly before the heading text. */
+class HeadingNumberWidget extends WidgetType {
+	constructor(readonly number: string) { super(); }
+	eq(other: HeadingNumberWidget): boolean { return other.number === this.number; }
+	toDOM(): HTMLElement {
+		const el = createSpan({ cls: 'aglc-heading-num', text: this.number });
+		el.setAttribute('aria-label', 'AGLC4 heading number, added on export');
+		return el;
+	}
+	ignoreEvent(): boolean { return true; }
+}
+
+/** Positions and AGLC4 numbers of the headings in a note. */
+function headingNumbers(text: string, top: TopLevel): { at: number; number: string }[] {
+	const excluded = excludedRanges(text);
+	const found: { level: number; at: number; text: string }[] = [];
+	const re = /^(#{1,6})[ \t]+(.*)$/gm;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(text))) {
+		const at = m.index;
+		if (excluded.some(([a, b]) => at >= a && at < b)) continue;
+		found.push({ level: m[1]!.length, at: at + m[0].length - m[2]!.length, text: m[2]! });
+	}
+	const numbers = numberHeadings(found.map((f) => f.level), top);
+	return found.flatMap((f, i) => {
+		const n = numbers[i]!.number;
+		return n && !hasTypedNumber(f.text) ? [{ at: f.at, number: n }] : [];
+	});
 }
 
 function isConsistent(scan: FootnoteScan): boolean {
@@ -119,6 +150,11 @@ export function buildExtension(host: AglcHost): Extension {
 							ranges.push(Decoration.widget({ widget: new HintWidget(hint.label, hint.hint), side: 1 }).range(cursor));
 						}
 					}
+				}
+			}
+			if (s.headingScheme === 'aglc') {
+				for (const h of headingNumbers(text, s.aglcTopLevel)) {
+					ranges.push(Decoration.widget({ widget: new HeadingNumberWidget(h.number), side: -1 }).range(h.at));
 				}
 			}
 			this.decorations = Decoration.set(ranges, true);

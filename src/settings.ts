@@ -1,4 +1,5 @@
 import { type App, PluginSettingTab, Setting, type SettingDefinitionItem } from 'obsidian';
+import type { HeadingScheme, TopLevel } from './layout/headings';
 import type Aglc4Plugin from './main';
 
 export interface Aglc4Settings {
@@ -20,6 +21,8 @@ export interface Aglc4Settings {
 	smartQuotes: boolean;
 	pageNumbers: boolean;
 	useTitle: boolean;
+	headingScheme: HeadingScheme;
+	aglcTopLevel: TopLevel;
 }
 
 export const DEFAULT_SETTINGS: Aglc4Settings = {
@@ -41,6 +44,8 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	smartQuotes: true,
 	pageNumbers: true,
 	useTitle: false,
+	headingScheme: 'plain',
+	aglcTopLevel: 'auto',
 };
 
 type Key = keyof Aglc4Settings;
@@ -86,6 +91,13 @@ const GROUPS: Group[] = [
 			{ name: 'Renumber footnotes', desc: 'Relabel footnotes 1, 2, 3 … in reading order when tidying or inserting.', control: { type: 'toggle', key: 'renumber' } },
 			{ name: 'Convert inline footnotes', desc: 'Turn ^[inline] footnotes into numbered footnotes at the bottom when tidying.', control: { type: 'toggle', key: 'convertInline' } },
 			{ name: 'Keep cross-references in sync', desc: 'When footnotes are added, removed or reordered, update "(n X)" so it still points at the same footnote.', control: { type: 'toggle', key: 'syncCrossRefs' } },
+		],
+	},
+	{
+		heading: 'Headings',
+		items: [
+			{ name: 'Heading style', desc: 'AGLC4 numbers and formats headings I, A, 1, (a), (i): level one in small capitals, the rest in italics. Numbers are added on export, in the page preview and as a faint label in the editor; your notes keep plain headings.', control: { type: 'dropdown', key: 'headingScheme', options: { plain: 'As written', aglc: 'AGLC4 hierarchy' } } },
+			{ name: 'AGLC4 level one', desc: 'Which Markdown heading is level I. Automatic: ## when the note opens with a single # heading, which becomes the title; otherwise #.', control: { type: 'dropdown', key: 'aglcTopLevel', options: { auto: 'Automatic', h1: '# headings', h2: '## headings (# is the title)' } } },
 		],
 	},
 	{

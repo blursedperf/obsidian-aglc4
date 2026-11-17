@@ -10,6 +10,7 @@ import { NextElementModal, NextElementSuggest, footnoteTextBeforeCursor } from '
 import { type ExportOptions, exportDocx } from './export/docx';
 import { exportHtml } from './export/html';
 import { PAGE_PREVIEW_VIEW, PagePreviewView } from './layout/view';
+import { importDocx } from './import/docx';
 import { type Aglc4Settings, Aglc4SettingTab, DEFAULT_SETTINGS } from './settings';
 
 /** Obsidian's editor exposes its CodeMirror view as `cm`. */
@@ -89,6 +90,12 @@ export default class Aglc4Plugin extends Plugin {
 
 		this.registerEvent(this.app.workspace.on('active-leaf-change', () => { void this.onLeafChange(); }));
 		this.registerEvent(this.app.workspace.on('file-menu', (menu: Menu, file: TAbstractFile) => {
+			if (file instanceof TFile && file.extension === 'docx') {
+				menu.addItem((item) => item.setTitle('Import as note with AGLC4 footnotes').setIcon('file-input').onClick(() => {
+					void this.app.vault.readBinary(file).then((data) => this.importWord(new Uint8Array(data), file.basename, file.parent?.path ?? ''));
+				}));
+				return;
+			}
 			if (!this.isMarkdown(file)) return;
 			menu.addItem((item) => item.setTitle('Export to Word with AGLC4 footnotes').setIcon('file-output').onClick(() => { void this.exportFile(file, 'docx'); }));
 			menu.addItem((item) => item.setTitle('Export to HTML with AGLC4 footnotes').setIcon('file-code').onClick(() => { void this.exportFile(file, 'html'); }));
@@ -173,6 +180,11 @@ export default class Aglc4Plugin extends Plugin {
 			id: 'jump-footnote',
 			name: 'Jump between footnote and its reference',
 			editorCallback: (editor) => this.jumpFootnote(editor),
+		});
+		this.addCommand({
+			id: 'import-docx',
+			name: 'Import Word document',
+			callback: () => this.pickWordFile(),
 		});
 		this.addCommand({
 			id: 'page-preview',
@@ -320,6 +332,46 @@ export default class Aglc4Plugin extends Plugin {
 	}
 
 	// -----------------------------------------------------------------------------------------------------
+	// Import
+
+	private pickWordFile() {
+		const input = createEl('input', { attr: { type: 'file', accept: '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document' } });
+		input.addEventListener('change', () => {
+			const f = input.files?.[0];
+			if (!f) return;
+			const folder = this.app.workspace.getActiveFile()?.parent?.path ?? '';
+			void f.arrayBuffer().then((data) => this.importWord(new Uint8Array(data), f.name.replace(/\.docx$/i, ''), folder));
+		});
+		input.click();
+	}
+
+	private async importWord(data: Uint8Array, name: string, folder: string) {
+		let result;
+		try {
+			result = importDocx(data);
+		} catch (e) {
+			new Notice(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
+			return;
+		}
+		const base = normalizePath(`${folder}/${name.replace(/[\\/:*?"<>|#^[\]]/g, ' ').trim() || 'Imported document'}`);
+		let path = `${base}.md`;
+		for (let n = 2; this.app.vault.getAbstractFileByPath(path); n++) path = `${base} ${n}.md`;
+		const file = await this.app.vault.create(path, result.markdown);
+		await this.app.workspace.getLeaf('tab').openFile(file);
+
+		const problems = analyseDocument(result.markdown, { disabled: new Set(this.settings.disabledRules), showInfo: false }).issues.length;
+		const lines = [`Imported ${file.basename} with ${result.footnotes} ${result.footnotes === 1 ? 'footnote' : 'footnotes'}.`];
+		if (problems > 0) lines.push(`${problems} AGLC4 ${problems === 1 ? 'problem' : 'problems'} found: run "List AGLC4 problems in this note".`);
+		if (result.numberedHeadings > 0) {
+			lines.push(this.settings.headingScheme === 'aglc'
+				? 'Heading numbers were removed: AGLC4 headings number them automatically.'
+				: 'Heading numbers were removed. To number headings I, A, 1, (a), (i), choose AGLC4 headings in settings.');
+		}
+		lines.push(...result.warnings);
+		new Notice(lines.join('\n'), 10000);
+	}
+
+	// -----------------------------------------------------------------------------------------------------
 	// Page preview
 
 	private async openPreview() {
@@ -346,6 +398,8 @@ export default class Aglc4Plugin extends Plugin {
 			smartQuotes: s.smartQuotes,
 			pageNumbers: s.pageNumbers,
 			title: s.useTitle ? file.basename : undefined,
+			headingScheme: s.headingScheme,
+			aglcTopLevel: s.aglcTopLevel,
 		};
 	}
 

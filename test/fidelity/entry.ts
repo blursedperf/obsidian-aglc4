@@ -28,9 +28,9 @@ const g = globalThis as unknown as Record<string, unknown>;
 g.createDiv = (o?: Attrs) => make.call(null, 'div', o);
 g.createSpan = (o?: Attrs) => make.call(null, 'span', o);
 
-g.runLayout = async (markdown: string) => {
+g.runLayout = async (markdown: string, overrides: Partial<typeof DEFAULT_EXPORT> = {}) => {
 	const host = document.body.appendChild(document.createElement('div'));
-	const layout = await layoutNote(markdown, { ...DEFAULT_EXPORT }, host);
+	const layout = await layoutNote(markdown, { ...DEFAULT_EXPORT, ...overrides }, host);
 	const view = document.body.appendChild(document.createElement('div'));
 	renderPages(layout, view);
 	return layout.pages.map((p) => ({

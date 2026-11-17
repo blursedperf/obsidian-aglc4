@@ -4,8 +4,9 @@
  */
 import {
 	AlignmentType, BorderStyle, Document, ExternalHyperlink, Footer, FootnoteReferenceRun, HeadingLevel, LevelFormat,
-	type IParagraphOptions, Packer, PageNumber, Paragraph, type ParagraphChild, Table, TableCell, TableRow, TextRun, WidthType,
+	type IParagraphOptions, Packer, PageNumber, Paragraph, type ParagraphChild, Tab, Table, TableCell, TableRow, TextRun, WidthType,
 } from 'docx';
+import { type HeadingScheme, type TopLevel, applyHeadingScheme } from '../layout/headings';
 import { PAGE, type ParaStyle, styles, twips } from '../layout/metrics';
 import { type Block, type Inline, type MdDocument, parseMarkdown, smartenQuotes, walkBlocks } from './markdown';
 
@@ -21,6 +22,10 @@ export interface ExportOptions {
 	pageNumbers: boolean;
 	/** Use the note's file name as a title when it has no level-one heading. */
 	title?: string;
+	/** Heading style: as written, or numbered and formatted in the AGLC4 hierarchy. */
+	headingScheme?: HeadingScheme;
+	/** Which Markdown heading is AGLC4 level one. */
+	aglcTopLevel?: TopLevel;
 }
 
 export const DEFAULT_EXPORT: ExportOptions = {
@@ -30,6 +35,8 @@ export const DEFAULT_EXPORT: ExportOptions = {
 	lineSpacing: 1.5,
 	smartQuotes: true,
 	pageNumbers: true,
+	headingScheme: 'plain',
+	aglcTopLevel: 'auto',
 };
 
 interface Style {
@@ -42,8 +49,9 @@ interface Style {
 
 const HEADINGS = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3, HeadingLevel.HEADING_4, HeadingLevel.HEADING_5, HeadingLevel.HEADING_6];
 
-/** Prepare a parsed note for export: smart quotes everywhere, including footnotes. */
+/** Prepare a parsed note for export: heading numbers, and smart quotes everywhere, including footnotes. */
 export function prepare(doc: MdDocument, opts: ExportOptions): MdDocument {
+	applyHeadingScheme(doc, opts.headingScheme ?? 'plain', opts.aglcTopLevel ?? 'auto');
 	if (opts.smartQuotes) {
 		walkBlocks(doc.blocks, (nodes) => { smartenQuotes(nodes); });
 		for (const blocks of doc.footnotes.values()) walkBlocks(blocks, (nodes) => { smartenQuotes(nodes); });
@@ -142,9 +150,12 @@ class DocxBuilder {
 		const out: (Paragraph | Table)[] = [];
 		for (const b of blocks) {
 			switch (b.t) {
-				case 'heading':
-					out.push(this.para({ heading: HEADINGS[b.level - 1], children: this.runs(b.c, {}, inFootnote) }));
+				case 'heading': {
+					const children = this.runs(b.c, {}, inFootnote);
+					if (b.number) children.unshift(new TextRun(b.number), new TextRun({ children: [new Tab()] }));
+					out.push(this.para({ heading: b.title ? HeadingLevel.TITLE : HEADINGS[(b.styleLevel ?? b.level) - 1], children }));
 					break;
+				}
 				case 'para':
 					out.push(this.para({
 						// Footnote paragraphs must name the footnote style, or Word gives them the body style.
@@ -205,7 +216,7 @@ class DocxBuilder {
 		const st = styles(this.opts);
 		// One definition of each paragraph style, shared with the page preview.
 		const style = (p: ParaStyle) => ({
-			run: { font: this.opts.font, size: pt(p.size), bold: p.bold || undefined, italics: p.italic || undefined },
+			run: { font: this.opts.font, size: pt(p.size), bold: p.bold || undefined, italics: p.italic || undefined, smallCaps: p.smallCaps || undefined },
 			paragraph: {
 				spacing: { before: twips(p.before), after: twips(p.after), line: Math.round(240 * p.multiple) },
 				alignment: p.center ? AlignmentType.CENTER : undefined,

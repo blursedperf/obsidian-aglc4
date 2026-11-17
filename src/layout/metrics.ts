@@ -6,6 +6,7 @@
  * from its hhea table, as a fraction of the em) times the font size times the multiple. For Times New
  * Roman that fraction is 2355/2048 = 1.1499, which matched Word's own PDF output to within 0.3pt.
  */
+import type { HeadingScheme } from './headings';
 
 export const PAGE = {
 	/** A4 */
@@ -68,6 +69,7 @@ export interface ParaStyle {
 	keepNext?: boolean;
 	/** Do not split across pages (headings). */
 	keepLines?: boolean;
+	smallCaps?: boolean;
 }
 
 export interface LayoutOptions {
@@ -75,6 +77,7 @@ export interface LayoutOptions {
 	fontSize: number;
 	footnoteSize: number;
 	lineSpacing: number;
+	headingScheme?: HeadingScheme;
 }
 
 export interface Styles {
@@ -98,7 +101,15 @@ export function styles(o: LayoutOptions): Styles {
 	return {
 		body: { size: o.fontSize, multiple: o.lineSpacing, before: 0, after: 6 },
 		footnote: { size: o.footnoteSize, multiple: 1, before: 0, after: 0 },
-		headings: [
+		headings: o.headingScheme === 'aglc' ? [
+			// AGLC4: level one in small capitals, levels two to five in italics, at body size.
+			heading(o.fontSize, 12, 6, { smallCaps: true }),
+			heading(o.fontSize, 12, 6, { italic: true }),
+			heading(o.fontSize, 12, 6, { italic: true }),
+			heading(o.fontSize, 12, 6, { italic: true }),
+			heading(o.fontSize, 12, 6, { italic: true }),
+			heading(o.fontSize, 12, 6, { italic: true }),
+		] : [
 			heading(o.fontSize + 4, 12, 6, { bold: true }),
 			heading(o.fontSize + 2, 12, 6, { bold: true }),
 			heading(o.fontSize, 10, 5, { bold: true, italic: true }),
@@ -117,6 +128,9 @@ export function styles(o: LayoutOptions): Styles {
 export function lineHeight(style: ParaStyle, font: string): number {
 	return style.size * lineFactor(font) * style.multiple;
 }
+
+/** Word's default tab stops, every half inch: a heading number is followed by a tab to the first. */
+export const TAB_STOP = 36;
 
 /** Points to twentieths of a point, Word's unit for spacing and indents. */
 export const twips = (pt: number): number => Math.round(pt * 20);

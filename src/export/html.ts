@@ -48,7 +48,13 @@ class HtmlBuilder {
 	blocks(blocks: Block[], inFootnote = false): string {
 		return blocks.map((b) => {
 			switch (b.t) {
-				case 'heading': return `<h${b.level}>${this.inline(b.c, inFootnote)}</h${b.level}>`;
+				case 'heading': {
+					if (b.title) return `<h1 class="title">${this.inline(b.c, inFootnote)}</h1>`;
+					const level = b.styleLevel ?? b.level;
+					const num = b.number ? `<span class="hnum">${esc(b.number)}</span>` : '';
+					const cls = b.styleLevel ? ` class="aglc aglc-${level}"` : '';
+					return `<h${Math.min(6, level)}${cls}>${num}${this.inline(b.c, inFootnote)}</h${Math.min(6, level)}>`;
+				}
 				case 'para': return `<p>${this.inline(b.c, inFootnote)}</p>`;
 				case 'quote': return `<blockquote>${this.blocks(b.blocks, inFootnote)}</blockquote>`;
 				case 'code': return `<pre><code>${esc(b.v)}</code></pre>`;
@@ -81,6 +87,12 @@ sup.fnref a { text-decoration: none; }
 section.footnotes { font-size: ${opts.footnoteSize}pt; line-height: 1.2; border-top: 1px solid #999; margin-top: 3em; padding-top: 1em; }
 section.footnotes p { margin: 0 0 .4em; }
 a.back { text-decoration: none; font-size: .8em; }
+h1.title { text-align: center; }
+h1.aglc, h2.aglc, h3.aglc, h4.aglc, h5.aglc, h6.aglc { font-size: 1em; font-weight: normal; }
+h1.aglc { font-variant: small-caps; }
+h2.aglc, h3.aglc, h4.aglc, h5.aglc, h6.aglc { font-style: italic; }
+.hnum { display: inline-block; min-width: 3em; font-style: normal; }
+h2.aglc .hnum, h3.aglc .hnum, h4.aglc .hnum, h5.aglc .hnum { font-style: italic; }
 table { border-collapse: collapse; } td, th { border: 1px solid #999; padding: .2em .5em; }
 @media print { a { color: inherit; text-decoration: none; } a.back { display: none; } body { margin: 0; max-width: none; } }`;
 	const html = `<!DOCTYPE html>

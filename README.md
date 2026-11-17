@@ -74,6 +74,32 @@ The footnote being typed is not flagged as unfinished until you move on from it.
 
 The exported text is your note as written: problems are not fixed silently. If the note has AGLC4 errors, the export notice says how many.
 
+## Importing Word documents
+
+**Import Word document** (command) opens a `.docx` file and turns it into a note in the current folder. A `.docx` file already in the vault can be imported by right-clicking it (**Import as note with AGLC4 footnotes**).
+
+- Footnotes become Markdown footnotes at the bottom of the note, numbered in reading order, with their italics, so they can be checked straight away. Endnotes become footnotes too.
+- Italics and bold are kept, whether set directly or by a character or paragraph style, as are strikethrough, highlights, headings, bulleted and numbered lists, indented block quotations, tables and links.
+- Citations inserted by Zotero or EndNote, and cross-references, keep the text Word shows.
+- Tracked insertions are accepted and deletions left out. Images, embedded objects and equations are left out, and the import notice says so.
+- Heading numbers (typed, or Word's automatic numbering) are removed so headings stay plain; turn on AGLC4 headings to number them again.
+
+The notice after an import says how many footnotes came across and how many AGLC4 problems the note has.
+
+## AGLC4 headings
+
+Set **Heading style** to **AGLC4 hierarchy** to number and format headings as AGLC4 sets out:
+
+| Level | Number | Style |
+| --- | --- | --- |
+| I | I, II, III | small capitals |
+| II | A, B, C | italics |
+| III | 1, 2, 3 | italics |
+| IV | (a), (b), (c) | italics |
+| V | (i), (ii), (iii) | italics |
+
+Write plain headings (`## Introduction`): the numbers are added in the Word and HTML exports and the page preview, and shown faintly in the editor, so they stay right as sections are added and moved. **AGLC4 level one** chooses which Markdown heading is level I. Automatic uses `##` when the note opens with a single `#` heading, which becomes a centred title, and `#` otherwise. A number typed at the start of a heading followed by a tab or two spaces ("I&nbsp;&nbsp;Introduction") is removed so it is not doubled.
+
 ## Page preview
 
 **Open page preview** (command, or the book icon in the ribbon) shows the active note as Word will paginate it: A4 pages with each footnote at the bottom of the page that cites it. It follows the note you are editing and updates as you type.
@@ -106,7 +132,8 @@ Where the plugin cites a rule it gives the AGLC4 rule number, or the chapter whe
 Checking: underlines on or off, dotted suggestions, disabled rules.
 Next element: inline hint, popup while typing, status bar.
 Footnotes: move footnotes to the bottom when leaving a note, renumber, convert `^[inline]` footnotes, keep `(n X)` in sync.
-Export: folder, font, sizes, line spacing, typographic quotes, page numbers, title.
+Headings: as written or AGLC4 hierarchy, and which heading is level I.
+Export and page preview: folder, font, sizes, line spacing, typographic quotes, page numbers, title.
 
 ## Development
 

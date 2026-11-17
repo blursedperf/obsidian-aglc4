@@ -38,6 +38,15 @@
 	user-select: none;
 }
 
+/* AGLC4 heading numbers, shown before headings in the editor */
+.aglc-heading-num {
+	color: var(--text-faint);
+	font-weight: normal;
+	font-style: normal;
+	margin-right: 0.6em;
+	user-select: none;
+}
+
 /* Hover explanation */
 .aglc-tooltip {
 	max-width: 420px;
@@ -220,7 +229,8 @@
 	top: -0.4em;
 }
 
-.aglc-pv-marker {
+.aglc-pv-marker,
+.aglc-pv-hnum {
 	display: inline-block;
 }
 
