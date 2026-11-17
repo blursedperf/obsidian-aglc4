@@ -56,6 +56,9 @@ function toggle(rPr: XmlElement | undefined, name: string): boolean | undefined 
 class Converter {
 	private styles = new Map<string, StyleDef>();
 	private numFormats = new Map<string, Map<string, string>>();
+	/** Link targets of each part (document, footnotes, endnotes): each part numbers its own. */
+	private partRels = new Map<string, Map<string, string>>();
+	/** Link targets of the part being converted. */
 	private rels = new Map<string, string>();
 	private notes = new Map<string, XmlElement>();
 	private endnotes = new Map<string, XmlElement>();
@@ -95,9 +98,15 @@ class Converter {
 			this.numFormats.set(n.attrs['w:numId'] ?? '', levels);
 		}
 
-		for (const r of kids(kid(xml('word/_rels/document.xml.rels'), 'Relationships'), 'Relationship')) {
-			if (r.attrs.Id && r.attrs.Target) this.rels.set(r.attrs.Id, r.attrs.Target);
+		for (const part of ['document', 'footnotes', 'endnotes']) {
+			const map = new Map<string, string>();
+			for (const r of kids(kid(xml(`word/_rels/${part}.xml.rels`), 'Relationships'), 'Relationship')) {
+				// Only links out of the document: other relationships point at the document's own parts.
+				if (r.attrs.Id && r.attrs.Target && /\/hyperlink$/.test(r.attrs.Type ?? '')) map.set(r.attrs.Id, r.attrs.Target);
+			}
+			this.partRels.set(part, map);
 		}
+		this.rels = this.partRels.get('document')!;
 		for (const [file, map, tag] of [['word/footnotes.xml', this.notes, 'footnote'], ['word/endnotes.xml', this.endnotes, 'endnote']] as const) {
 			for (const n of kids(kid(xml(file), W(`${tag}s`)), W(tag))) {
 				const type = n.attrs['w:type'];
@@ -268,13 +277,16 @@ class Converter {
 
 	private formatSeg(s: Seg, before: string): string {
 		let text = s.text;
-		if (s.link && !/^#/.test(s.link)) {
+		const link = s.link ? cleanTarget(s.link) : null;
+		if (link) {
 			const shown = text.trim();
-			if (shown === s.link || shown === s.link.replace(/^mailto:/, '')) {
-				// A URL shown as itself: keep it as text, so AGLC4 "<https://…>" survives.
+			const bare = shown.replace(/^<|>$/g, '');
+			if (bare === link || bare === link.replace(/^mailto:/, '') || bare.replace(/\/$/, '') === link.replace(/\/$/, '')) {
+				// A URL shown as itself: keep it as text, so AGLC4 "<https://…>" survives (including a ">"
+				// that Word made part of the link).
 				text = shown;
 			} else {
-				return wrap(`[${escapeMd(text).replace(/[[\]]/g, '\\$&')}](${s.link.replace(/[()]/g, encodeURIComponent)})`, s.fmt);
+				return wrap(`[${escapeMd(text).replace(/[[\]]/g, '\\$&')}](${link.replace(/[()]/g, encodeURIComponent)})`, s.fmt);
 			}
 		}
 		const lead = /^\s*/.exec(text)![0];
@@ -376,6 +388,7 @@ class Converter {
 
 		const defs = this.noteOrder.map((ref, i) => {
 			const note = (ref.kind === 'footnote' ? this.notes : this.endnotes).get(ref.id);
+			this.rels = this.partRels.get(`${ref.kind}s`) ?? new Map<string, string>();
 			if (!note) return `[^${i + 1}]: `;
 			const paras = kids(note, W('p'))
 				.map((p) => this.paragraph(p, true)?.text ?? '')
@@ -477,6 +490,17 @@ function withoutWholeFormatting(pieces: Piece[]): Piece[] {
 	const whole = keys.filter((k) => segs.every((p) => p.fmt[k]));
 	if (whole.length === 0) return pieces;
 	return pieces.map((p) => ('text' in p ? { ...p, fmt: { ...p.fmt, ...Object.fromEntries(whole.map((k) => [k, false])) } } : p));
+}
+
+/**
+ * A link target as a usable address: web and email links only, without angle brackets that Word took
+ * into the link from AGLC4 "<https://…>". Null for anything else (internal parts, bookmarks).
+ */
+export function cleanTarget(target: string): string | null {
+	let t = target.trim().replace(/^(?:<|%3c)/i, '').replace(/(?:>|%3e)$/i, '');
+	if (!/^(?:https?:|mailto:)/i.test(t)) return null;
+	t = t.replace(/\s+/g, '');
+	return t;
 }
 
 function sameFmt(a: Fmt, b: Fmt): boolean {

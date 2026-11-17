@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { analyseDocument } from '../src/aglc/document';
 import { DEFAULT_EXPORT, exportDocx } from '../src/export/docx';
-import { importDocx, levelFromStyleName } from '../src/import/docx';
+import { cleanTarget, importDocx, levelFromStyleName } from '../src/import/docx';
 import { applyHeadingScheme, numberHeadings } from '../src/layout/headings';
 import { parseMarkdown } from '../src/export/markdown';
 
@@ -56,7 +56,7 @@ describe('Word import', () => {
 <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:rPr><w:i/></w:rPr></w:style>
 </w:styles>`;
 		const endnotes = `<?xml version="1.0"?><w:endnotes ${w}><w:endnote w:type="separator" w:id="0"><w:p/></w:endnote><w:endnote w:id="2"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t>Mabo v Queensland (No 2)</w:t></w:r><w:r><w:t xml:space="preserve"> (1992) 175 CLR 1.</w:t></w:r></w:p></w:endnote></w:endnotes>`;
-		const rels = `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId9" Type="hyperlink" Target="https://www.hcourt.gov.au/" TargetMode="External"/></Relationships>`;
+		const rels = `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.hcourt.gov.au/" TargetMode="External"/></Relationships>`;
 		const zip = zipSync({
 			'word/document.xml': strToU8(doc),
 			'word/styles.xml': strToU8(styles),
@@ -149,6 +149,29 @@ describe('Word import', () => {
 			['Subtitle', null], ['Normal', null], ['TOC Heading', null], ['toc 1', null], ['HTML Preformatted', null], ['List Paragraph', null],
 		];
 		for (const [name, level] of cases) expect([name, levelFromStyleName(name)]).toEqual([name, level]);
+	});
+
+	it('reads footnote links from the footnotes\' own link list, keeping AGLC4 angle brackets', () => {
+		const ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+		const rel = (type: string, target: string) => `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${type}" Target="${target}"/></Relationships>`;
+		const zip = zipSync({
+			'word/document.xml': strToU8(`<w:document ${ns}><w:body><w:p><w:r><w:t>Text.</w:t></w:r><w:r><w:footnoteReference w:id="1"/></w:r></w:p></w:body></w:document>`),
+			'word/footnotes.xml': strToU8(`<w:footnotes ${ns}><w:footnote w:id="1"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> Department of Health, </w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t>Review</w:t></w:r><w:r><w:t xml:space="preserve"> (Issues Paper, 26 May 2026) &lt;</w:t></w:r><w:hyperlink r:id="rId1"><w:r><w:t>https://example.gov.au/review.pdf&gt;</w:t></w:r></w:hyperlink><w:r><w:t xml:space="preserve"> (‘</w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t>Review</w:t></w:r><w:r><w:t>’).</w:t></w:r></w:p></w:footnote></w:footnotes>`),
+			// The same ID means something else in the main document's list.
+			'word/_rels/document.xml.rels': strToU8(rel('customXml', '../customXml/item1.xml')),
+			'word/_rels/footnotes.xml.rels': strToU8(rel('hyperlink', 'https://example.gov.au/review.pdf%3e')),
+		});
+		const r = importDocx(zip);
+		expect(r.markdown).toContain('[^1]: Department of Health, *Review* (Issues Paper, 26 May 2026) <https://example.gov.au/review.pdf> (‘*Review*’).');
+		expect(analyseDocument(r.markdown).issues).toEqual([]);
+	});
+
+	it('cleans link targets', () => {
+		expect(cleanTarget('https://a.org/x%3e')).toBe('https://a.org/x');
+		expect(cleanTarget('<https://a.org/x>')).toBe('https://a.org/x');
+		expect(cleanTarget('../customXml/item1.xml')).toBeNull();
+		expect(cleanTarget('#_Toc123')).toBeNull();
+		expect(cleanTarget('mailto:a@b.org')).toBe('mailto:a@b.org');
 	});
 
 	it('rejects files that are not Word documents', () => {
