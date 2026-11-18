@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-aglc4",
-	"version": "1.5.1",
+	"version": "1.5.2",
 	"description": "AGLC4 citations for Obsidian: footnotes kept at the bottom of the note, next-element suggestions, live underlining of incorrect or incomplete citations, and Word export with real footnotes.",
 	"main": "main.js",
 	"type": "module",
