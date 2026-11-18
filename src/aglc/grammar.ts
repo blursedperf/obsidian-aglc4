@@ -1120,9 +1120,18 @@ const IBID: SourceSpec = {
 			label: 'Ibid',
 			hint: '"Ibid" (capitalised unless it follows a signal)',
 			insert: 'Ibid',
-			re: S('[Ii]bid\\.?'),
+			// Italicised ("*Ibid*") is matched so it can be flagged: it is set in roman (r 1.8.3).
+			re: S('[*_][Ii]bid\\.?[*_]|[Ii]bid\\.?'),
 			check: (m, ctx) => {
 				const out: Issue[] = [];
+				if (/^[*_]/.test(m.text)) {
+					// One fix for everything, so it cannot overlap a fix to the case or the full stop.
+					let word = m.text.slice(1, -1);
+					word = (ctx.hasSignal ? 'ibid' : 'Ibid') + word.slice(4);
+					if (word.endsWith('.') && m.to < ctx.text.length) word = word.slice(0, -1);
+					out.push(issue(m, 'ibid-italics', 'error', '"Ibid" is not italicised.', 'r 1.4.3, 1.8.3', { from: m.from, to: m.to, insert: word }));
+					return out;
+				}
 				const word = m.text.slice(0, 4);
 				if (ctx.hasSignal && word === 'Ibid') {
 					out.push(issue(m, 'ibid-case', 'error', '"ibid" is lower case after an introductory signal.', 'r 1.4.3', { from: m.from, to: m.from + 4, insert: 'ibid' }));

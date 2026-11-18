@@ -271,7 +271,32 @@ export function analyseDocument(text: string, opts: AnalyseOptions = {}): Docume
 		return true;
 	});
 	unique.sort((a, b) => a.from - b.from || a.to - b.to);
-	return { scan, notes, issues: unique };
+	return { scan, notes, issues: unique.map((i) => visible(text, i)) };
+}
+
+/**
+ * Widens an issue that covers only punctuation or formatting marks (a stray comma, the closing "*" of
+ * italics, which Obsidian hides) to take in the word before it, so its underline can be seen and
+ * hovered. The fix is unchanged.
+ */
+function visible(text: string, i: Issue): Issue {
+	if (/[\p{L}\p{N}]/u.test(text.slice(i.from, i.to))) return i;
+	let from = i.from;
+	while (from > 0 && /[ \t*_]/.test(text[from - 1]!)) from--;
+	while (from > 0 && !/\s/.test(text[from - 1]!)) from--;
+	// Take in a whole parenthesis: "(n 1)," rather than "1),".
+	const word = text.slice(from, i.from);
+	if (word.includes(')') && !word.includes('(')) {
+		const open = text.lastIndexOf('(', from);
+		if (open !== -1 && from - open <= 30 && !text.slice(open, from).includes('\n')) from = open;
+	}
+	if (from === i.from) {
+		let to = i.to;
+		while (to < text.length && /[ \t*_]/.test(text[to]!)) to++;
+		while (to < text.length && !/\s/.test(text[to]!)) to++;
+		return to > i.to ? { ...i, to } : i;
+	}
+	return { ...i, from };
 }
 
 /** Apply fixes, last first, skipping any that overlap a fix already applied. */

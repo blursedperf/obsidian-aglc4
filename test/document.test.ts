@@ -158,3 +158,37 @@ describe('note-level rules added in review', () => {
 		expect(issue.message).toMatch(/^Unexpected text after the pinpoint of this case \(reported\) citation/);
 	});
 });
+
+describe('issues that can be seen', () => {
+	const NOTE = 'A.[^1] B.[^2] C.[^3] D.[^4] E.[^5]\n\n'
+		+ '[^1]: *Green v Brown* (1990) 170 CLR 1.\n'
+		+ '[^2]: *Green* (n 1), 13.\n'
+		+ '[^3]: *Ibid*, 5.\n'
+		+ '[^4]: *Ibid.*\n'
+		+ '[^5]: See *ibid* 7.\n';
+	const issues = analyseDocument(NOTE, { showInfo: false }).issues;
+	const at = (rule: string) => issues.filter((i) => i.rule === rule).map((i) => NOTE.slice(i.from, i.to));
+
+	it('flags an italicised Ibid instead of a missing full stop', () => {
+		expect(at('closing-stop')).toEqual([]);
+		expect(at('ibid-italics')).toEqual(['*Ibid*', '*Ibid.*', '*ibid*']);
+		expect(at('ibid-comma')).toHaveLength(1);
+	});
+	it('underlines a stray comma together with the word before it', () => {
+		expect(at('n-comma')).toEqual(['(n 1),']);
+		expect(at('ibid-comma')[0]).toMatch(/Ibid\*?,$/);
+	});
+	it('never underlines only punctuation or formatting marks', () => {
+		for (const i of issues) expect(NOTE.slice(i.from, i.to)).toMatch(/[\p{L}\p{N}]/u);
+	});
+	it('fixes them all', () => {
+		let text = NOTE;
+		for (let k = 0; k < 3; k++) text = applyFixes(text, analyseDocument(text, { showInfo: false }).issues).text;
+		// Footnote 2 cites the source of footnote 1, so it becomes Ibid (r 1.4.3).
+		expect(text).toContain('[^2]: Ibid 13.');
+		expect(text).toContain('[^3]: Ibid 5.');
+		expect(text).toContain('[^4]: Ibid.');
+		expect(text).toContain('[^5]: See ibid 7.');
+		expect(analyseDocument(text, { showInfo: false }).issues.filter((i) => i.severity === 'error')).toEqual([]);
+	});
+});

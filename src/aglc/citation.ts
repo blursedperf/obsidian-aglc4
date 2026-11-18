@@ -227,7 +227,8 @@ export interface FootnoteAnalysis {
 export function analyseFootnote(text: string, opts: { showInfo?: boolean; inProgress?: boolean } = {}): FootnoteAnalysis {
 	const segs = splitSegments(text);
 	const trimmed = text.replace(/\s+$/, '');
-	const closed = /[.?!](?:['’"”])?$/.test(trimmed);
+	// Closing italics do not hide the full stop: "*Ibid.*" ends with one.
+	const closed = /[.?!](?:['’"”])?$/.test(trimmed.replace(/[*_]+$/, ''));
 	const segments = segs.map((s) => analyseSegment(s, opts));
 	const issues = segments.flatMap((s) => s.issues);
 	issues.push(...acrossSegments(text, segments));
