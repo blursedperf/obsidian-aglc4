@@ -1,5 +1,7 @@
 # AGLC4 Citations for Obsidian
 
+If you like it, [shout me a third of a coffee](https://patreon.com/Blursedperf)...or don't, no presh.
+
 Write footnoted legal work in Obsidian to the *Australian Guide to Legal Citation* (4th ed). The plugin:
 
 - **keeps footnotes at the bottom of the note**, in reading order and renumbered, and keeps `(n X)` cross-references pointing at the right footnote when footnotes are added or moved;
