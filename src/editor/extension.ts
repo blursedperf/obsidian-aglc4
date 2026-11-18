@@ -10,7 +10,7 @@ import { nextRequired } from '../aglc/citation';
 import { type DocumentAnalysis, analyseDocument } from '../aglc/document';
 import type { Issue } from '../aglc/types';
 import { excludedRanges, footnoteKeys, remapCrossReferences, scanFootnotes, type FootnoteScan } from '../footnotes';
-import { type TopLevel, hasTypedNumber, numberHeadings } from '../layout/headings';
+import { type TopLevel, backMatterIndex, hasTypedNumber, numberHeadings } from '../layout/headings';
 import type { Aglc4Settings } from '../settings';
 import { atFinishedFootnote, footnoteAt, minimalChange, referenceFor } from './context';
 
@@ -65,7 +65,7 @@ function headingNumbers(text: string, top: TopLevel): { at: number; number: stri
 		if (excluded.some(([a, b]) => at >= a && at < b)) continue;
 		found.push({ level: m[1]!.length, at: at + m[0].length - m[2]!.length, text: m[2]! });
 	}
-	const numbers = numberHeadings(found.map((f) => f.level), top);
+	const numbers = numberHeadings(found.map((f) => f.level), top, backMatterIndex(found.map((f) => f.text)));
 	return found.flatMap((f, i) => {
 		const n = numbers[i]!.number;
 		return n && !hasTypedNumber(f.text) ? [{ at: f.at, number: n }] : [];

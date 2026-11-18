@@ -6,9 +6,10 @@ import {
 	AlignmentType, BorderStyle, Document, ExternalHyperlink, Footer, FootnoteReferenceRun, HeadingLevel, LevelFormat,
 	type IParagraphOptions, Packer, PageNumber, Paragraph, type ParagraphChild, Table, TableCell, TableRow, TextRun, WidthType,
 } from 'docx';
-import { type HeadingScheme, type TopLevel, applyHeadingScheme } from '../layout/headings';
+import { BIBLIOGRAPHY_HEADING, type HeadingScheme, type TopLevel, applyHeadingScheme } from '../layout/headings';
+import { buildBibliography } from '../aglc/bibliography';
 import { NUMBER_SPACE, PAGE, type ParaStyle, type Styles, styles, twips } from '../layout/metrics';
-import { type Block, type Inline, type MdDocument, parseMarkdown, smartenQuotes, superscriptOrdinals, walkBlocks } from './markdown';
+import { type Block, type Inline, type MdDocument, parseInline, parseMarkdown, plainText, smartenQuotes, superscriptOrdinals, walkBlocks } from './markdown';
 
 export interface ExportOptions {
 	font: string;
@@ -28,6 +29,8 @@ export interface ExportOptions {
 	aglcTopLevel?: TopLevel;
 	/** Keep each footnote whole on one page (Word: "Keep lines together" on footnote text). */
 	keepFootnotesTogether?: boolean;
+	/** Add a bibliography of the sources cited in the footnotes, on a new page (AGLC4 r 1.13). */
+	bibliography?: boolean;
 }
 
 export const DEFAULT_EXPORT: ExportOptions = {
@@ -51,6 +54,9 @@ interface Style {
 	code?: boolean;
 }
 
+/** Hanging indent of a bibliography entry, in twips (1.27 cm, Word's default). */
+const HANGING = 720;
+
 const HEADINGS = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3, HeadingLevel.HEADING_4, HeadingLevel.HEADING_5, HeadingLevel.HEADING_6];
 
 /** Footnote content starting with the space that follows the footnote number, as Word inserts it. */
@@ -62,9 +68,39 @@ export function footnoteWithSpace(blocks: Block[]): Block[] {
 	return [{ ...first, c: [{ t: 'text', v: ' ' }, ...first.c] }, ...rest];
 }
 
-/** Prepare a parsed note for export: heading numbers, and smart quotes everywhere, including footnotes. */
-export function prepare(doc: MdDocument, opts: ExportOptions): MdDocument {
+/**
+ * The bibliography as blocks: a heading on a new page, a lettered heading per section, and entries with a
+ * hanging indent. The headings are unnumbered and, with AGLC4 headings, styled as levels I and A, as in
+ * the example in AGLC4 r 1.13.
+ */
+export function bibliographyBlocks(markdown: string, opts: ExportOptions): Block[] {
+	const sections = buildBibliography(markdown);
+	if (sections.length === 0) return [];
+	const aglc = opts.headingScheme === 'aglc';
+	const blocks: Block[] = [{ t: 'heading', level: 1, styleLevel: aglc ? 1 : undefined, c: [{ t: 'text', v: 'Bibliography' }], pageBreak: true }];
+	for (const s of sections) {
+		blocks.push({ t: 'heading', level: 2, styleLevel: aglc ? 2 : undefined, number: s.letter, c: [{ t: 'text', v: s.title }] });
+		for (const e of s.entries) blocks.push({ t: 'para', c: parseInline(e), hanging: true });
+	}
+	return blocks;
+}
+
+/**
+ * Prepare a parsed note for export: heading numbers, the bibliography (given the note's Markdown), and
+ * smart quotes everywhere, including footnotes.
+ */
+export function prepare(doc: MdDocument, opts: ExportOptions, markdown?: string): MdDocument {
 	applyHeadingScheme(doc, opts.headingScheme ?? 'plain', opts.aglcTopLevel ?? 'auto');
+	// A bibliography written in the note (or inserted by the command) starts on a new page and its
+	// entries hang; when the note has one, none is generated.
+	const own = doc.blocks.findIndex((b) => b.t === 'heading' && BIBLIOGRAPHY_HEADING.test(plainText(b.c).trim()));
+	if (own >= 0) {
+		const heading = doc.blocks[own]!;
+		if (heading.t === 'heading') heading.pageBreak = true;
+		for (const b of doc.blocks.slice(own + 1)) if (b.t === 'para') b.hanging = true;
+	} else if (opts.bibliography && markdown !== undefined) {
+		doc.blocks.push(...bibliographyBlocks(markdown, opts));
+	}
 	// Ordinal suffixes in superscript (r 1.10.1, 6.3.2), in the text and the footnotes.
 	const sup = (nodes: Inline[]) => { nodes.splice(0, nodes.length, ...superscriptOrdinals(nodes)); };
 	walkBlocks(doc.blocks, sup);
@@ -198,7 +234,7 @@ class DocxBuilder {
 						const upright = this.st.headings[level - 1]?.uprightNumber;
 						children.unshift(new TextRun({ text: b.number + NUMBER_SPACE, italics: upright ? false : undefined }));
 					}
-					out.push(this.para({ heading: b.title ? HeadingLevel.TITLE : HEADINGS[level - 1], children }));
+					out.push(this.para({ heading: b.title ? HeadingLevel.TITLE : HEADINGS[level - 1], children, pageBreakBefore: b.pageBreak || undefined }));
 					break;
 				}
 				case 'para':
@@ -206,7 +242,8 @@ class DocxBuilder {
 						// Footnote paragraphs must name the footnote style, or Word gives them the body style.
 						style: inFootnote ? 'FootnoteText' : this.quoteDepth > 0 ? 'AglcQuote' : undefined,
 						children: this.runs(b.c, {}, inFootnote),
-						indent: indent ? { left: indent } : undefined,
+						// A bibliography entry's lines after the first are indented (hanging indent).
+						indent: b.hanging ? { left: indent + HANGING, hanging: HANGING } : indent ? { left: indent } : undefined,
 					}));
 					break;
 				case 'quote': {
@@ -341,7 +378,7 @@ export interface DocxResult {
 }
 
 export async function exportDocx(markdown: string, opts: ExportOptions): Promise<DocxResult> {
-	const doc = prepare(parseMarkdown(markdown), opts);
+	const doc = prepare(parseMarkdown(markdown), opts, markdown);
 	const builder = new DocxBuilder(doc, opts);
 	// Footnotes are collected while the body is built, so build the body first.
 	const document = builder.build();

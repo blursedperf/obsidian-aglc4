@@ -25,8 +25,9 @@ export type Block =
 	 * A heading. With AGLC4 headings, `number` is its number ("I", "(a)"), `styleLevel` the heading style to
 	 * use (its AGLC4 level), and `title` marks a top heading used as the document title.
 	 */
-	| { t: 'heading'; level: number; c: Inline[]; number?: string; styleLevel?: number; title?: boolean }
-	| { t: 'para'; c: Inline[] }
+	| { t: 'heading'; level: number; c: Inline[]; number?: string; styleLevel?: number; title?: boolean; pageBreak?: boolean }
+	/** A paragraph; `hanging` for a bibliography entry, its lines after the first indented. */
+	| { t: 'para'; c: Inline[]; hanging?: boolean }
 	| { t: 'quote'; blocks: Block[] }
 	| { t: 'list'; ordered: boolean; start: number; items: Block[][] }
 	| { t: 'code'; lang: string; v: string }

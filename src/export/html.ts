@@ -54,9 +54,10 @@ class HtmlBuilder {
 					const level = b.styleLevel ?? b.level;
 					const num = b.number ? `<span class="hnum">${esc(b.number)}</span>&nbsp;` : '';
 					const cls = b.styleLevel ? ` class="aglc aglc-${level}"` : '';
-					return `<h${Math.min(6, level)}${cls}>${num}${this.inline(b.c, inFootnote)}</h${Math.min(6, level)}>`;
+					const brk = b.pageBreak ? ' style="break-before: page"' : '';
+					return `<h${Math.min(6, level)}${cls}${brk}>${num}${this.inline(b.c, inFootnote)}</h${Math.min(6, level)}>`;
 				}
-				case 'para': return `<p>${this.inline(b.c, inFootnote)}</p>`;
+				case 'para': return `<p${b.hanging ? ' class="bib"' : ''}>${this.inline(b.c, inFootnote)}</p>`;
 				case 'quote': return `<blockquote>${this.blocks(b.blocks, inFootnote)}</blockquote>`;
 				case 'code': return `<pre><code>${esc(b.v)}</code></pre>`;
 				case 'hr': return '<hr>';
@@ -75,7 +76,7 @@ class HtmlBuilder {
 }
 
 export function exportHtml(markdown: string, opts: ExportOptions): { html: string; footnotes: number } {
-	const doc = prepare(parseMarkdown(markdown), opts);
+	const doc = prepare(parseMarkdown(markdown), opts, markdown);
 	const b = new HtmlBuilder(doc);
 	const body = b.blocks(doc.blocks);
 	const notes = b.notes.map((n, i) => `<li id="fn${i + 1}">${n.replace(/<\/p>$/, ` <a class="back" href="#fnref${i + 1}">↩</a></p>`)}</li>`).join('\n');
@@ -84,6 +85,7 @@ export function exportHtml(markdown: string, opts: ExportOptions): { html: strin
 body { font-family: "${opts.font}", serif; font-size: ${opts.fontSize}pt; line-height: ${opts.lineSpacing}; max-width: 42em; margin: 2em auto; padding: 0 1em; }
 h1, h2, h3 { line-height: 1.2; }
 blockquote { margin: 0 2.5em; font-size: ${opts.fontSize - 1}pt; }
+p.bib { padding-left: 36pt; text-indent: -36pt; }
 sup.fnref a { text-decoration: none; }
 section.footnotes { font-size: ${opts.footnoteSize}pt; line-height: 1.2; border-top: 1px solid #999; margin-top: 3em; padding-top: 1em; }
 section.footnotes p { margin: 0 0 .4em; }

@@ -102,6 +102,17 @@ The footnote being typed is not flagged as unfinished until you move on from it.
 - each footnote reference gets its own footnote, so a footnote referenced twice is exported twice (and flagged in the editor);
 - the font, body and footnote sizes, line spacing and page numbers come from settings.
 
+**Bibliography.** Turn on **Add a bibliography** in settings to end the export (and the page preview) with a bibliography of every source cited in the footnotes, on a new page, in the form AGLC4 requires (r 1.13):
+
+- sections A Articles/Books/Reports, B Cases, C Legislation, D Treaties and E Other, leaving out empty sections and relettering the rest;
+- each source cited as in its first full footnote, with the first author's name inverted (`Foster, Michelle`; `Hathaway, James C and Audrey Macklin`), no closing full stop, and no pinpoints, judges or short titles;
+- in alphabetical order by the first author's surname and first name, then the later authors (a work with fewer authors first), then the title ignoring "The"; institutions by their name and sources without an author by their title;
+- each source listed once, however often it is cited, and Ibid and `(n X)` references left out.
+
+**Insert bibliography of cited sources** (command) puts the same bibliography into the note as ordinary text, above the footnotes, so you can edit it: add sources you relied on but did not cite (AGLC4 asks for every source relied on), or correct a surname of more than one word (only the last word of a person's name is taken as the surname). Run it again to bring it up to date; it asks before replacing the bibliography already in the note, and Undo restores it.
+
+A bibliography written in the note, under a heading "Bibliography", "References" or "Reference list", is exported on a new page with hanging indents, and no other bibliography is added. It and the headings after it are not numbered as parts of the essay; with AGLC4 headings, its sections keep their letters ("A Articles/Books/Reports").
+
 **Export to HTML** writes a standalone page with the footnotes listed at the end. For a PDF with footnotes at the bottom of each page, export to Word and save as PDF from Word or LibreOffice.
 
 The exported text is your note as written: problems are not fixed silently. If the note has AGLC4 errors, the export notice says how many.

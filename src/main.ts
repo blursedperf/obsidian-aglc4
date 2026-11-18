@@ -1,7 +1,8 @@
-import { type App, type Editor, MarkdownView, type Menu, Notice, Platform, Plugin, SuggestModal, type TAbstractFile, TFile, type WorkspaceLeaf, normalizePath } from 'obsidian';
+import { type App, type Editor, MarkdownView, type Menu, Modal, Notice, Platform, Plugin, Setting, SuggestModal, type TAbstractFile, TFile, type WorkspaceLeaf, normalizePath } from 'obsidian';
 import type { EditorView } from '@codemirror/view';
 import { type DocumentAnalysis, analyseDocument, applyFixes } from './aglc/document';
 import { suggestNext } from './aglc/citation';
+import { withBibliography } from './aglc/bibliography';
 import type { Issue } from './aglc/types';
 import { footnoteKeys, remapCrossReferences, scanFootnotes, tidyFootnotes } from './footnotes';
 import { footnoteAt, minimalChange, referenceFor } from './editor/context';
@@ -25,6 +26,28 @@ function replaceText(editor: Editor, next: string): void {
 	const change = minimalChange(current, next);
 	if (!change) return;
 	editor.replaceRange(change.insert, editor.offsetToPos(change.from), editor.offsetToPos(change.to));
+}
+
+/** Asks before an action that replaces text. */
+class ConfirmModal extends Modal {
+	constructor(app: App, title: string, private message: string, private action: string, private onConfirm: () => void) {
+		super(app);
+		this.setTitle(title);
+	}
+
+	onOpen() {
+		this.contentEl.createEl('p', { text: this.message });
+		new Setting(this.contentEl)
+			.addButton((b) => b.setButtonText('Cancel').onClick(() => this.close()))
+			.addButton((b) => b.setButtonText(this.action).setCta().onClick(() => {
+				this.close();
+				this.onConfirm();
+			}));
+	}
+
+	onClose() {
+		this.contentEl.empty();
+	}
 }
 
 class IssueModal extends SuggestModal<Issue> {
@@ -176,6 +199,32 @@ export default class Aglc4Plugin extends Plugin {
 				replaceText(editor, current);
 				const left = analyseDocument(current, { disabled: new Set(this.settings.disabledRules), showInfo: false }).issues.length;
 				new Notice(`Applied ${total} ${total === 1 ? 'fix' : 'fixes'}.${left > 0 ? ` ${left} ${left === 1 ? 'problem needs' : 'problems need'} your attention.` : ''}`);
+			},
+		});
+		this.addCommand({
+			id: 'insert-bibliography',
+			name: 'Insert bibliography of cited sources',
+			editorCallback: (editor) => {
+				const r = withBibliography(editor.getValue(), this.settings.aglcTopLevel);
+				if (!r) {
+					new Notice('No source is cited in full in the footnotes, so there is nothing to list in a bibliography.');
+					return;
+				}
+				const apply = () => {
+					replaceText(editor, r.text);
+					new Notice(`Bibliography ${r.replaced ? 'replaced' : 'added'}: ${r.sources} ${r.sources === 1 ? 'source' : 'sources'}. Add any sources you relied on but did not cite.`);
+				};
+				if (!r.replaced) {
+					apply();
+					return;
+				}
+				new ConfirmModal(
+					this.app,
+					'Replace the bibliography?',
+					'This note already has a bibliography. Replace it with one listing the sources cited in the footnotes? Entries you added or edited by hand will be lost (Undo restores them).',
+					'Replace',
+					apply,
+				).open();
 			},
 		});
 		this.addCommand({
@@ -498,6 +547,7 @@ export default class Aglc4Plugin extends Plugin {
 			headingScheme: s.headingScheme,
 			aglcTopLevel: s.aglcTopLevel,
 			keepFootnotesTogether: s.keepFootnotesTogether,
+			bibliography: s.bibliography,
 		};
 	}
 

@@ -27,6 +27,7 @@ export interface Aglc4Settings {
 	returnOnFinish: boolean;
 	closeFootnotePane: boolean;
 	keepFootnotesTogether: boolean;
+	bibliography: boolean;
 }
 
 export const DEFAULT_SETTINGS: Aglc4Settings = {
@@ -54,6 +55,7 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	returnOnFinish: true,
 	closeFootnotePane: true,
 	keepFootnotesTogether: true,
+	bibliography: false,
 };
 
 type Key = keyof Aglc4Settings;
@@ -119,6 +121,7 @@ const GROUPS: Group[] = [
 			{ name: 'Body text size', desc: 'In points.', control: { type: 'slider', key: 'fontSize', min: 9, max: 16, step: 0.5 } },
 			{ name: 'Footnote text size', desc: 'In points.', control: { type: 'slider', key: 'footnoteSize', min: 7, max: 14, step: 0.5 } },
 			{ name: 'Keep footnotes on one page', desc: 'Keep each footnote whole at the bottom of one page: when a long footnote (eg one with a long web address) does not fit, the line citing it moves to the next page with it. A footnote longer than a page is still split. Turn off to let footnotes continue on the next page, as Word does by default.', control: { type: 'toggle', key: 'keepFootnotesTogether' } },
+			{ name: 'Add a bibliography', desc: 'Add a bibliography of every source cited in the footnotes, on a new page at the end, in the form AGLC4 requires (r 1.13): sections for articles, books and reports, cases, legislation, treaties and other sources, in alphabetical order, with the first author\'s name inverted and no pinpoints. Used in Word and HTML exports and the page preview. Not added when the note already has a heading "Bibliography", "References" or "Reference list".', control: { type: 'toggle', key: 'bibliography' } },
 			{ name: 'Line spacing', control: { type: 'dropdown', key: 'lineSpacing', options: { '1': 'Single', '1.5': '1.5 lines', '2': 'Double' } } },
 			{ name: 'Typographic quotation marks', desc: 'Export straight quotes as ‘curly’ quotes, as in a published AGLC4 document.', control: { type: 'toggle', key: 'smartQuotes' } },
 			{ name: 'Page numbers', desc: 'Number the pages of Word exports in the footer.', control: { type: 'toggle', key: 'pageNumbers' } },

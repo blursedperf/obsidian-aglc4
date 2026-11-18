@@ -1,4 +1,4 @@
-import type { Block, MdDocument } from '../export/markdown';
+import { type Block, type MdDocument, plainText } from '../export/markdown';
 
 /**
  * The AGLC4 heading hierarchy (AGLC4 r 1.12.2):
@@ -31,6 +31,23 @@ export interface HeadingNumber {
 
 export const AGLC_LEVELS = 5;
 
+/**
+ * A heading that starts the back matter: the bibliography (AGLC4 r 1.13). It and the headings after it
+ * are not numbered as parts of the text.
+ */
+export const BIBLIOGRAPHY_HEADING = /^(?:bibliography|reference list|references)$/i;
+
+/** Index of the heading that starts the back matter, or -1. */
+export function backMatterIndex(texts: string[]): number {
+	return texts.findIndex((t) => BIBLIOGRAPHY_HEADING.test(stripTypedNumber(t).trim()));
+}
+
+/** The Markdown level of AGLC4 level one for these headings (1 or 2), as in numberHeadings. */
+export function topMarkdownLevel(levels: number[], top: TopLevel): number {
+	const h1s = levels.filter((l) => l === 1).length;
+	return top === 'h2' || (top === 'auto' && levels[0] === 1 && h1s === 1) ? 2 : 1;
+}
+
 export function toRoman(n: number, upper: boolean): string {
 	const map: [number, string][] = [[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']];
 	let out = '';
@@ -59,12 +76,17 @@ export function aglcLabel(level: number, n: number): string {
 	}
 }
 
-/** Number a document's headings, given their Markdown levels in order. */
-export function numberHeadings(levels: number[], top: TopLevel): HeadingNumber[] {
-	const h1s = levels.filter((l) => l === 1).length;
-	const base = top === 'h2' || (top === 'auto' && levels[0] === 1 && h1s === 1) ? 2 : 1;
+/**
+ * Number a document's headings, given their Markdown levels in order. From `back` (the bibliography
+ * heading, see backMatterIndex) on, headings are styled from AGLC4 level one but not numbered.
+ */
+export function numberHeadings(levels: number[], top: TopLevel, back = -1): HeadingNumber[] {
+	const base = topMarkdownLevel(back >= 0 ? levels.slice(0, back) : levels, top);
 	const counters = new Array<number>(AGLC_LEVELS + 1).fill(0);
-	return levels.map((l) => {
+	return levels.map((l, i) => {
+		if (back >= 0 && i >= back) {
+			return { title: false, aglcLevel: Math.max(1, Math.min(AGLC_LEVELS, 1 + l - levels[back]!)), number: null };
+		}
 		if (base === 2 && l === 1) return { title: true, aglcLevel: null, number: null };
 		const level = l - base + 1;
 		if (level > AGLC_LEVELS) return { title: false, aglcLevel: null, number: null };
@@ -96,11 +118,21 @@ export function hasTypedNumber(text: string): boolean {
 export function applyHeadingScheme(doc: MdDocument, scheme: HeadingScheme, top: TopLevel): MdDocument {
 	if (scheme !== 'aglc') return doc;
 	const headings = doc.blocks.filter((b): b is Extract<Block, { t: 'heading' }> => b.t === 'heading');
-	const numbers = numberHeadings(headings.map((h) => h.level), top);
+	const back = backMatterIndex(headings.map((h) => plainText(h.c)));
+	const numbers = numberHeadings(headings.map((h) => h.level), top, back);
 	headings.forEach((h, i) => {
 		const n = numbers[i]!;
 		const first = h.c[0];
 		if (first && first.t === 'text') first.v = stripTypedNumber(first.v);
+		// A bibliography section keeps its letter ("A Articles/Books/Reports"), set upright as a number.
+		const letter = back >= 0 && i > back && first?.t === 'text' ? /^([A-Z])\s+(?=\S)/.exec(first.v) : null;
+		if (letter && first?.t === 'text') {
+			first.v = first.v.slice(letter[0].length);
+			h.number = letter[1];
+			h.title = false;
+			h.styleLevel = n.aglcLevel ?? AGLC_LEVELS + 1;
+			return;
+		}
 		h.title = n.title;
 		h.number = n.number ?? undefined;
 		h.styleLevel = n.aglcLevel ?? (n.title ? undefined : AGLC_LEVELS + 1);

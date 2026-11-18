@@ -19,6 +19,8 @@ interface Item {
 	lh: number;
 	/** Treat as one unbreakable unit (tables). */
 	atomic?: boolean;
+	/** Start a new page before this paragraph (the bibliography). */
+	pageBreak?: boolean;
 }
 
 export interface PreviewLayout {
@@ -132,11 +134,14 @@ class Builder {
 					}
 					this.inline(b.c, el, { italic: !!style.italic, bold: !!style.bold }, false);
 					this.add(el, style);
+					if (b.pageBreak) this.blocks[this.blocks.length - 1]!.pageBreak = true;
 					break;
 				}
 				case 'para': {
 					const style = this.quoteDepth > 0 ? this.st.quote : this.st.body;
-					const el = this.para(style, indent);
+					// A bibliography entry hangs: its first line starts at the margin, the rest are indented.
+					const el = this.para(style, b.hanging ? indent + this.st.hanging * 2 : indent);
+					if (b.hanging) el.setCssStyles({ textIndent: `-${this.st.hanging * 2}pt` });
 					this.inline(b.c, el, { italic: false, bold: false }, false);
 					this.add(el, style);
 					break;
@@ -234,7 +239,7 @@ function flattenParas(blocks: Block[]): Inline[][] {
  * again afterwards.
  */
 export async function layoutNote(markdown: string, opts: ExportOptions, host: HTMLElement): Promise<PreviewLayout> {
-	const doc = prepare(parseMarkdown(markdown), opts);
+	const doc = prepare(parseMarkdown(markdown), opts, markdown);
 	const b = new Builder(doc, opts);
 	if (opts.title && !doc.blocks.some((x) => x.t === 'heading' && x.level === 1)) b.title(opts.title);
 	b.build(doc.blocks);
@@ -258,7 +263,7 @@ export async function layoutNote(markdown: string, opts: ExportOptions, host: HT
 		const lhPx = it.lh * PX;
 		const lines = Math.max(1, Math.round(rect.height / lhPx));
 		const refs = refsIn(it.el, rect.top, lhPx);
-		return { lines, lineHeight: it.lh, spaceBefore: it.style.before, spaceAfter: it.style.after, keepNext: it.style.keepNext, keepLines: it.style.keepLines, refs };
+		return { lines, lineHeight: it.lh, spaceBefore: it.style.before, spaceAfter: it.style.after, keepNext: it.style.keepNext, keepLines: it.style.keepLines, pageBreakBefore: it.pageBreak, refs };
 	});
 	const pnotes: PNote[] = b.notes.map((it) => ({
 		lines: Math.max(1, Math.round(it.el.getBoundingClientRect().height / (it.lh * PX))),

@@ -12,7 +12,7 @@
  * - headings are kept with the next paragraph and not split.
  *
  * Space before a paragraph at the top of a page after an automatic break is suppressed, except on the
- * first page.
+ * first page and after a page break before the paragraph.
  *
  * This module is pure so it can be tested without a browser: measured lines go in, page slices come out.
  */
@@ -24,6 +24,8 @@ export interface PBlock {
 	spaceAfter: number;
 	keepNext?: boolean;
 	keepLines?: boolean;
+	/** Start a new page before this block (Word: "Page break before"). */
+	pageBreakBefore?: boolean;
 	/** Footnotes cited, by the line they are cited on (0-based) and the footnote's index. */
 	refs: { line: number; note: number }[];
 }
@@ -85,6 +87,8 @@ interface State {
 	continued: boolean;
 	/** Set when a footnote was split: nothing more fits on the page. */
 	full: boolean;
+	/** The page was started by a page break before its first block, which keeps its space before. */
+	broken?: boolean;
 }
 
 function clone(s: State): State {
@@ -196,7 +200,7 @@ export function paginate(blocks: PBlock[], notes: PNote[], geo: Geometry): Page[
 		return false;
 	};
 
-	const gapFor = (s: State, b: PBlock) => (s.lastAfter === null ? (first && s.body.length === 0 ? b.spaceBefore : 0) : Math.max(s.lastAfter, b.spaceBefore));
+	const gapFor = (s: State, b: PBlock) => (s.lastAfter === null ? ((first || s.broken) && s.body.length === 0 ? b.spaceBefore : 0) : Math.max(s.lastAfter, b.spaceBefore));
 
 	/** Whether the next `minLines` lines of blocks starting at `i` (following keep-with-next) fit. */
 	const keepFits = (s: State, i: number): boolean => {
@@ -218,6 +222,10 @@ export function paginate(blocks: PBlock[], notes: PNote[], geo: Geometry): Page[
 
 	for (let i = 0; i < blocks.length; i++) {
 		const b = blocks[i]!;
+		if (b.pageBreakBefore && (state.body.length > 0 || state.notes.length > 0)) {
+			newPage();
+			state.broken = true;
+		}
 		let line = 0;
 		while (line < b.lines) {
 			const atTop = state.body.length === 0;
