@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import JSZip from 'jszip';
 import { buildBibliography, withBibliography } from '../src/aglc/bibliography';
 import { numberHeadings } from '../src/layout/headings';
+import { scanFootnotes, tidyFootnotes } from '../src/footnotes';
+import { analyseDocument } from '../src/aglc/document';
 import { DEFAULT_EXPORT, exportDocx } from '../src/export/docx';
 import { exportHtml } from '../src/export/html';
 import { paginate } from '../src/layout/paginate';
@@ -125,13 +127,36 @@ describe('page break before', () => {
 describe('insert bibliography command', () => {
 	const essay = '# Title\n\n## Introduction\n\nText.[^1] More.[^2]\n\n## Conclusion\n\nEnd.\n\n[^1]: *Lane v Morrison* (2009) 239 CLR 230, 236.\n[^2]: Jane Smith, *Principles* (Federation Press, 2018) 4.\n';
 
-	it('inserts it before the footnote definitions, at the level of the parts', () => {
+	const BIB = '## Bibliography\n\n### A Articles/Books/Reports\n\nSmith, Jane, *Principles* (Federation Press, 2018)\n\n### B Cases\n\n*Lane v Morrison* (2009) 239 CLR 230\n';
+
+	it('inserts it after the footnote definitions, at the level of the parts', () => {
 		const r = withBibliography(essay, 'auto')!;
 		expect(r.replaced).toBe(false);
 		expect(r.sources).toBe(2);
-		expect(r.text).toBe('# Title\n\n## Introduction\n\nText.[^1] More.[^2]\n\n## Conclusion\n\nEnd.\n\n'
-			+ '## Bibliography\n\n### A Articles/Books/Reports\n\nSmith, Jane, *Principles* (Federation Press, 2018)\n\n### B Cases\n\n*Lane v Morrison* (2009) 239 CLR 230\n\n'
-			+ '[^1]: *Lane v Morrison* (2009) 239 CLR 230, 236.\n[^2]: Jane Smith, *Principles* (Federation Press, 2018) 4.\n');
+		expect(r.text).toBe(`${essay}\n${BIB}`);
+	});
+
+	it('moves a bibliography above the footnotes (as 1.6.0 inserted it) to after them', () => {
+		const old = essay.replace('[^1]:', `${BIB}\n[^1]:`);
+		const r = withBibliography(old, 'auto')!;
+		expect(r.replaced).toBe(true);
+		expect(r.text).toBe(`${essay}\n${BIB}`);
+	});
+
+	it('is kept after the footnotes when they are tidied or a footnote is added', () => {
+		const text = withBibliography(essay, 'auto')!.text;
+		expect(tidyFootnotes(text, { renumber: true, convertInline: true }).text).toBe(text);
+		// A new footnote is added at the end of the note, then the footnotes are tidied.
+		const added = `${text.replace('End.', 'End.[^3]')}\n[^3]: Ibid 5.\n`;
+		const tidied = tidyFootnotes(added, { renumber: true, convertInline: true }).text;
+		expect(tidied.indexOf('[^3]: Ibid 5.')).toBeLessThan(tidied.indexOf('## Bibliography'));
+		expect(tidied.endsWith(BIB)).toBe(true);
+	});
+
+	it('is not read as part of the last footnote, and raises no problems', () => {
+		const text = withBibliography(essay, 'auto')!.text;
+		expect(scanFootnotes(text).defs.map((d) => d.content)).toEqual(['*Lane v Morrison* (2009) 239 CLR 230, 236.', 'Jane Smith, *Principles* (Federation Press, 2018) 4.']);
+		expect(analyseDocument(text, { showInfo: false }).issues).toEqual([]);
 	});
 
 	it('replaces an existing bibliography, keeping the footnotes', () => {
@@ -144,7 +169,7 @@ describe('insert bibliography command', () => {
 
 	it('uses # in a note without headings, and returns null when nothing is cited', () => {
 		expect(withBibliography('Text.[^1]\n\n[^1]: *Lane v Morrison* (2009) 239 CLR 230.\n', 'auto')!.text)
-			.toBe('Text.[^1]\n\n# Bibliography\n\n## A Cases\n\n*Lane v Morrison* (2009) 239 CLR 230\n\n[^1]: *Lane v Morrison* (2009) 239 CLR 230.\n');
+			.toBe('Text.[^1]\n\n[^1]: *Lane v Morrison* (2009) 239 CLR 230.\n\n# Bibliography\n\n## A Cases\n\n*Lane v Morrison* (2009) 239 CLR 230\n');
 		expect(withBibliography('Text.[^1]\n\n[^1]: Not a citation.\n', 'auto')).toBeNull();
 	});
 

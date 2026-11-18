@@ -9,8 +9,8 @@
  *   ignoring "The"; an institution by its name; a source with no author by its title.
  */
 import { analyseDocument } from './document';
-import { scanFootnotes } from '../footnotes';
-import { BIBLIOGRAPHY_HEADING, type TopLevel, stripTypedNumber, topMarkdownLevel } from '../layout/headings';
+import { bibliographyStart, scanFootnotes } from '../footnotes';
+import { type TopLevel, topMarkdownLevel } from '../layout/headings';
 import type { CitationAnalysis } from './citation';
 import type { SourceKind } from './grammar';
 
@@ -196,43 +196,36 @@ export interface InsertResult {
 }
 
 /**
- * The note with a bibliography of its cited sources inserted before the footnote definitions at the end,
- * replacing the note's bibliography if it has one. Null when no source is cited in full.
+ * The note with a bibliography of its cited sources at the very end, after the footnote definitions,
+ * replacing the note's bibliography if it has one (wherever it is). Null when no source is cited in full.
  */
 export function withBibliography(text: string, top: TopLevel): InsertResult | null {
 	const sections = buildBibliography(text);
 	if (sections.length === 0) return null;
 	const scan = scanFootnotes(text);
+	const start = bibliographyStart(text, scan.excluded);
 
-	// The footnote definitions at the end of the note: the bibliography goes before them.
-	const defs = [...scan.defs].sort((a, b) => a.from - b.from);
-	let end = text.length;
-	for (let k = defs.length - 1; k >= 0; k--) {
-		if (text.slice(defs[k]!.to, end).trim() !== '') break;
-		end = defs[k]!.from;
-	}
-
-	// Headings of the text, and the note's own bibliography heading if any.
-	const headings: { level: number; from: number; text: string }[] = [];
-	const re = /^(#{1,6})[ \t]+(.*)$/gm;
+	// Headings of the text before the bibliography.
+	const levels: number[] = [];
+	const re = /^(#{1,6})[ \t]/gm;
 	let m: RegExpExecArray | null;
-	while ((m = re.exec(text)) && m.index < end) {
+	while ((m = re.exec(text)) && (start < 0 || m.index < start)) {
 		const at = m.index;
-		if (scan.excluded.some(([a, b]) => at >= a && at < b)) continue;
-		headings.push({ level: m[1]!.length, from: at, text: m[2]!.trim() });
+		if (!scan.excluded.some(([a, b]) => at >= a && at < b)) levels.push(m[1]!.length);
 	}
-	const own = headings.findIndex((h) => BIBLIOGRAPHY_HEADING.test(stripTypedNumber(h.text)));
-	const essay = own >= 0 ? headings.slice(0, own) : headings;
-	const level = own >= 0 ? headings[own]!.level : topMarkdownLevel(essay.map((h) => h.level), top);
-	const from = own >= 0 ? headings[own]!.from : end;
 
-	const before = text.slice(0, from).replace(/\s+$/, '');
-	const after = text.slice(end);
-	const sources = sections.reduce((n, s) => n + s.entries.length, 0);
-	const body = bibliographyMarkdown(sections, level);
+	let rest = text;
+	let level = topMarkdownLevel(levels, top);
+	if (start >= 0) {
+		// The existing bibliography runs to the footnote definitions after it, or to the end.
+		level = /^#+/.exec(text.slice(start))![0].length;
+		const next = scan.defs.map((d) => d.from).filter((f) => f > start).sort((a, b) => a - b)[0] ?? text.length;
+		rest = `${text.slice(0, start).replace(/\s+$/, '')}\n\n${text.slice(next)}`;
+	}
+	const before = rest.replace(/\s+$/, '');
 	return {
-		text: `${before}${before ? '\n\n' : ''}${body}\n${after ? `\n${after}` : ''}`,
-		sources,
-		replaced: own >= 0,
+		text: `${before}${before ? '\n\n' : ''}${bibliographyMarkdown(sections, level)}\n`,
+		sources: sections.reduce((n, s) => n + s.entries.length, 0),
+		replaced: start >= 0,
 	};
 }

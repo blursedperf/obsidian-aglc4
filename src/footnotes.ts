@@ -5,6 +5,7 @@
  * "footnote N" here always means the N-th footnote in reading order. Cross-references "(n N)" use the
  * same numbering.
  */
+import { BIBLIOGRAPHY_HEADING, stripTypedNumber } from './layout/headings';
 
 export interface FootnoteRef {
 	label: string;
@@ -54,6 +55,21 @@ const DEF_RE = /^\[\^([^\]\s]+)\]:[ \t]?/;
 const REF_RE = /\[\^([^\]\s]+)\](?!:)/g;
 
 /** Ranges of fenced code, frontmatter, %% comments %% and inline code, which are never scanned. */
+/**
+ * Offset of the line of the note's bibliography heading (see BIBLIOGRAPHY_HEADING), or -1. The
+ * bibliography is kept after the footnote definitions, at the very end of the note.
+ */
+export function bibliographyStart(text: string, excluded = excludedRanges(text)): number {
+	const re = /^#{1,6}[ \t]+(.*)$/gm;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(text))) {
+		const at = m.index;
+		if (excluded.some(([a, b]) => at >= a && at < b)) continue;
+		if (BIBLIOGRAPHY_HEADING.test(stripTypedNumber(m[1]!.trim()))) return at;
+	}
+	return -1;
+}
+
 export function excludedRanges(text: string): [number, number][] {
 	const out: [number, number][] = [];
 	const fm = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/.exec(text);
@@ -285,6 +301,10 @@ export function tidyFootnotes(text: string, opts: TidyOptions): TidyResult {
 
 	// Collapse the blank lines left behind and trim the end.
 	body = body.replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '');
+	// A bibliography stays after the footnotes, at the end of the note.
+	const bib = bibliographyStart(body);
+	const back = bib >= 0 ? body.slice(bib) : '';
+	if (bib >= 0) body = body.slice(0, bib).replace(/\s+$/, '');
 
 	const defsOut: string[] = [];
 	const emitted = new Set<string>();
@@ -298,7 +318,8 @@ export function tidyFootnotes(text: string, opts: TidyOptions): TidyResult {
 	}
 	for (const d of orphans) defsOut.push(`[^${orphanLabel.get(d)!}]: ${indent(dedent(d.content))}`);
 
-	const out = defsOut.length > 0 ? `${body}\n\n${defsOut.join('\n')}\n` : `${body}\n`;
+	let out = defsOut.length > 0 ? `${body}\n\n${defsOut.join('\n')}\n` : `${body}\n`;
+	if (back) out = `${out.replace(/\s+$/, '')}\n\n${back}\n`;
 	return { text: out, changed: out !== text, relabelled };
 }
 
