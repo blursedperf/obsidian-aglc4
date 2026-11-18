@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
  * Offline audit: fails if the plugin's source, built bundle or styles could make a network request,
- * run dynamically generated code, or inject raw HTML.
+ * run dynamically generated code, encode or decode base64, or inject raw HTML.
  *
  *   node scripts/offline-audit.mjs
  *
@@ -34,6 +34,8 @@ const CODE_RULES = [
 	[/\bwindow\.open\s*\(/, "window.open()"],
 	[/\beval\s*\(/, "eval()"],
 	[/\bnew\s+Function\s*\(/, "new Function()"],
+	[/\b(?:btoa|atob)\s*\(/, "base64 encode or decode (btoa/atob)"],
+	[/(?:\bfrom\s*\([^)]*,\s*|\.toString\s*\(\s*)["'`]base64(?:url)?["'`]/, "base64 Buffer conversion"],
 	[/\bset(?:Timeout|Interval)\s*\(\s*["'`]/, "string timer (implicit eval)"],
 	[/\.innerHTML\s*[+]?=/, "innerHTML assignment"],
 	[/\.outerHTML\s*[+]?=/, "outerHTML assignment"],
