@@ -7,6 +7,18 @@ Write footnoted legal work in Obsidian to the *Australian Guide to Legal Citatio
 - **underlines incorrect or incomplete citations** as you write, explains the AGLC4 rule on hover and offers a one-click fix;
 - **exports to Word with real footnotes** at the bottom of each page, keeping italics, quotation marks and `<URLs>` exactly as AGLC4 requires. It also exports to HTML.
 
+## Private, offline and AI-free
+
+Your writing never leaves your computer.
+
+- **Fully offline.** The plugin makes no network requests of any kind: no servers, no APIs, no downloads, no update checks. It works the same with your internet connection turned off.
+- **No AI.** Citations are checked with fixed rules written from the AGLC4 text, not by a language model or any other AI service. Nothing you write is sent anywhere to be analysed, and the same text always gets the same result.
+- **No telemetry, no accounts.** There is no tracking, analytics or sign-in. The plugin stores only its settings, in your vault's `.obsidian` folder.
+- **Your files stay where they are.** Word and HTML exports are written into your vault; Word imports are read from your computer and turned into a note in your vault. Nothing is uploaded.
+- **Checked, not just promised.** `npm test` runs an offline audit (`scripts/offline-audit.mjs`) over the source code, the built plugin and its styles. It fails if any of them could make a network request (fetch, XMLHttpRequest, WebSockets, Obsidian's request APIs, Node or Electron network modules), open a web page, run generated code (`eval`, `new Function`) or inject raw HTML. The libraries bundled into the plugin (`docx` for Word files and `fflate` for zip files) are included in that check.
+
+The developer tools in `scripts/` (such as the Word fidelity check, which drives a local Chromium) are not part of the plugin and are not shipped in a release.
+
 ## Writing footnotes
 
 Use ordinary Obsidian footnotes. Italics are `*…*` (or `_…_`).
