@@ -101,6 +101,21 @@ function shortReference(c: CitationAnalysis, footnote: number): string | null {
 	return `${surname}${etAl ? ' et al' : multi ? ` and ${author.split(/\sand\s/).pop()!.trim().split(/\s+/).pop()!}` : ''} (n ${footnote})${pin}`;
 }
 
+/**
+ * Drops "unexpected text" that a style problem with a fix explains: in "175 CLR 1 at 45", the "at" is
+ * flagged (with a fix), and once it is fixed "45" is an ordinary pinpoint. Reporting " at 45" as well
+ * would underline the pinpoint with a warning that has no fix.
+ */
+function withoutExplained(text: string, issues: Issue[], lint: Issue[], inProgress: boolean): Issue[] {
+	return issues.filter((u) => {
+		if (u.rule !== 'unexpected') return true;
+		const cause = lint.find((l) => l.fix && l.from >= u.from && l.from <= u.from + 1 && l.to <= u.to);
+		if (!cause?.fix) return true;
+		const fixed = text.slice(0, cause.fix.from) + cause.fix.insert + text.slice(cause.fix.to);
+		return analyseFootnote(fixed, { showInfo: false, inProgress }).issues.some((i) => i.rule === 'unexpected');
+	});
+}
+
 export function analyseDocument(text: string, opts: AnalyseOptions = {}): DocumentAnalysis {
 	const disabled = opts.disabled ?? new Set<string>();
 	const scan = scanFootnotes(text);
@@ -112,8 +127,9 @@ export function analyseDocument(text: string, opts: AnalyseOptions = {}): Docume
 		const end = note.contentFrom + note.content.replace(/\s+$/, '').length;
 		const inProgress = opts.cursor !== undefined && opts.cursor >= note.contentFrom && opts.cursor <= end;
 		const analysis = analyseFootnote(note.content, { showInfo: opts.showInfo !== false, inProgress });
-		for (const i of analysis.issues) push(shiftIssue(i, note.contentFrom));
-		for (const i of lintFootnote(note.content, disabled)) push(shiftIssue(i, note.contentFrom));
+		const lint = lintFootnote(note.content, disabled);
+		for (const i of withoutExplained(note.content, analysis.issues, lint, inProgress)) push(shiftIssue(i, note.contentFrom));
+		for (const i of lint) push(shiftIssue(i, note.contentFrom));
 		return { note, analysis };
 	});
 

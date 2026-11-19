@@ -235,3 +235,18 @@ describe('issues that can be seen', () => {
 		expect(analyseDocument(text, { showInfo: false }).issues.filter((i) => i.severity === 'error')).toEqual([]);
 	});
 });
+
+describe('one underline for one mistake', () => {
+	const issuesOf = (fn: string) => {
+		const t = `A.[^1]\n\n[^1]: ${fn}\n`;
+		return analyseDocument(t, { showInfo: false }).issues.map((i) => `${i.rule} "${t.slice(i.from, i.to)}"`);
+	};
+	it('"at" before a pinpoint is the only problem, not the pinpoint too', () => {
+		expect(issuesOf('*Cubillo v Commonwealth [No 2]* (2000) 103 FCR 1 at 45.')).toEqual(['at-pinpoint " at "']);
+		expect(issuesOf('*Love v Commonwealth* [2020] HCA 3 at [81].')).toEqual(['at-pinpoint " at "']);
+		expect(issuesOf('Jane Smith, *Principles* (Federation Press, 2018) at 4.')).toEqual(['at-pinpoint " at "']);
+	});
+	it('still reports text that the fix does not explain', () => {
+		expect(issuesOf('*Mabo v Queensland [No 2]* (1992) 175 CLR 1 at 45 zzz qqq.')).toContain('unexpected " at 45 zzz qqq"');
+	});
+});
