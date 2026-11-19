@@ -3,8 +3,8 @@
  * the cursor, explains problems on hover with one-click fixes, and keeps "(n X)" cross-references
  * pointing at the right footnotes.
  */
-import { type Extension, Prec, StateEffect } from '@codemirror/state';
-import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType, hoverTooltip, keymap } from '@codemirror/view';
+import { type Extension, Prec, StateEffect, type Text } from '@codemirror/state';
+import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType, closeHoverTooltips, hoverTooltip, keymap } from '@codemirror/view';
 import { editorInfoField } from 'obsidian';
 import { nextRequired } from '../aglc/citation';
 import { type DocumentAnalysis, analyseDocument } from '../aglc/document';
@@ -232,8 +232,26 @@ export function buildExtension(host: AglcHost): Extension {
 
 const SEVERITY_LABEL: Record<Issue['severity'], string> = { error: 'Error', warning: 'Warning', info: 'Suggestion' };
 
+/**
+ * The change a Fix button makes, or null when the note has changed since the button was shown: its
+ * positions would then point at other text (pressing it again after a fix would delete more).
+ */
+export function fixChange(doc: Text, shownWith: Text, fix: NonNullable<Issue['fix']>): { from: number; to: number; insert: string } | null {
+	if (doc !== shownWith) return null;
+	return { from: fix.from, to: fix.to, insert: fix.insert };
+}
+
 function renderTooltip(view: EditorView, issues: Issue[], host: AglcHost): HTMLElement {
 	const dom = createDiv({ cls: 'aglc-tooltip' });
+	// The note as it was when the box opened: a fix only applies to that text.
+	const shownWith = view.state.doc;
+	const fixButtons: HTMLButtonElement[] = [];
+	const disableFixes = (label: string) => {
+		for (const b of fixButtons) {
+			b.disabled = true;
+			b.setText(label);
+		}
+	};
 	for (const i of issues) {
 		const item = dom.createDiv({ cls: `aglc-tooltip-item aglc-tooltip-${i.severity}` });
 		const head = item.createDiv({ cls: 'aglc-tooltip-head' });
@@ -245,9 +263,17 @@ function renderTooltip(view: EditorView, issues: Issue[], host: AglcHost): HTMLE
 			const fix = i.fix;
 			const preview = fix.insert === '' ? 'remove' : `“${fix.insert.length > 40 ? `${fix.insert.slice(0, 40)}…` : fix.insert}”`;
 			const btn = actions.createEl('button', { cls: 'mod-cta', text: fix.label ?? `Fix: ${preview}` });
+			fixButtons.push(btn);
 			btn.addEventListener('click', (e) => {
 				e.preventDefault();
-				view.dispatch({ changes: { from: fix.from, to: fix.to, insert: fix.insert }, userEvent: 'input.aglc-fix' });
+				const change = fixChange(view.state.doc, shownWith, fix);
+				if (!change) {
+					disableFixes('Text changed: hover again');
+					return;
+				}
+				// One fix per box: the others' positions are out of date once the text changes.
+				disableFixes('Fixed');
+				view.dispatch({ changes: change, effects: closeHoverTooltips, userEvent: 'input.aglc-fix' });
 				view.focus();
 			});
 		}
