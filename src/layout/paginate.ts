@@ -33,6 +33,8 @@ export interface PBlock {
 export interface PNote {
 	lines: number;
 	lineHeight: number;
+	/** Keep this footnote whole on one page (see Geometry.keepNotesTogether, which this overrides). */
+	keepTogether?: boolean;
 }
 
 export interface Geometry {
@@ -170,7 +172,10 @@ export function paginate(blocks: PBlock[], notes: PNote[], geo: Geometry): Page[
 		}
 		// Split the footnotes: everything that fits, then as much of the next one as fits.
 		const firstLine = cited.length > 0 ? notes[cited[0]!]!.lineHeight : 0;
-		const maySplit = !keepNotes || cited.some((n) => tooLong(n, b.lineHeight));
+		// A footnote kept whole is not split (unless it is too long for any page): the citing line moves
+		// instead. A line citing several footnotes splits only if all of them may be split.
+		const splittable = (n: number) => !(notes[n]!.keepTogether ?? keepNotes) || tooLong(n, b.lineHeight);
+		const maySplit = cited.every(splittable);
 		if (maySplit && cited.length > 0 && s.carry.length === 0 && fits(s, cost, firstLine)) {
 			commit();
 			for (let i = 0; i < cited.length; i++) {

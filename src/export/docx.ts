@@ -8,8 +8,8 @@ import {
 } from 'docx';
 import { BIBLIOGRAPHY_HEADING, type HeadingScheme, type TopLevel, applyHeadingScheme } from '../layout/headings';
 import { buildBibliography } from '../aglc/bibliography';
-import { NUMBER_SPACE, PAGE, type ParaStyle, type Styles, styles, twips } from '../layout/metrics';
-import { type Block, type Inline, type MdDocument, parseInline, parseMarkdown, plainText, smartenQuotes, superscriptOrdinals, walkBlocks } from './markdown';
+import { NUMBER_SPACE, PAGE, type ParaStyle, type Styles, keepFootnoteTogether, styles, twips } from '../layout/metrics';
+import { type Block, type Inline, type MdDocument, footnoteParagraphs, parseInline, parseMarkdown, plainText, smartenQuotes, superscriptOrdinals, walkBlocks } from './markdown';
 
 export interface ExportOptions {
 	font: string;
@@ -200,14 +200,17 @@ class DocxBuilder {
 		const id = this.nextId++;
 		// Word follows the footnote number with a space; Word adds the number itself before the text.
 		const blocks = footnoteWithSpace(content);
-		// To keep a footnote of several paragraphs together, each but the last is kept with the next. The
-		// last is not, or every footnote would be chained to the one after it.
-		const keep = this.opts.keepFootnotesTogether === true;
+		// A short footnote is kept whole (see keepFootnoteTogether): its lines together, and each of its
+		// paragraphs but the last kept with the next. The last is not, or every footnote would be chained to
+		// the one after it. A long footnote may continue on the next page.
+		const keep = keepFootnoteTogether(footnoteParagraphs(content), this.opts);
 		const head = keep ? blocks.slice(0, -1) : blocks;
+		this.keepLines = keep;
 		this.keepNext = keep;
 		const children = this.paragraphs(head, true);
 		this.keepNext = false;
 		if (keep && blocks.length > 0) children.push(...this.paragraphs(blocks.slice(-1), true));
+		this.keepLines = false;
 		this.footnotes[id] = { children: children.filter((p): p is Paragraph => p instanceof Paragraph) };
 		return new FootnoteReferenceRun(id);
 	}
@@ -218,9 +221,12 @@ class DocxBuilder {
 	/** Set while building footnote paragraphs that must stay with the next one. */
 	private keepNext = false;
 
+	/** Set while building the paragraphs of a footnote kept whole on one page. */
+	private keepLines = false;
+
 	/** A paragraph with widow and orphan control, which Word leaves off unless asked. */
 	private para(opts: IParagraphOptions): Paragraph {
-		return new Paragraph({ widowControl: true, ...(this.keepNext ? { keepNext: true } : {}), ...opts });
+		return new Paragraph({ widowControl: true, ...(this.keepNext ? { keepNext: true } : {}), ...(this.keepLines ? { keepLines: true } : {}), ...opts });
 	}
 
 	paragraphs(blocks: Block[], inFootnote = false, indent = 0): (Paragraph | Table)[] {
@@ -327,7 +333,6 @@ class DocxBuilder {
 						run: { font: this.opts.font, size: pt(st.footnote.size) },
 						paragraph: {
 							spacing: { line: Math.round(240 * st.footnote.multiple), after: twips(st.footnote.after) },
-							keepLines: st.footnote.keepLines || undefined,
 						},
 					},
 					heading1: h1, heading2: h2, heading3: h3, heading4: h4, heading5: h5, heading6: h6,

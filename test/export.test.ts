@@ -61,7 +61,10 @@ describe('Word export', () => {
 		expect(/<w:style [^>]*w:styleId="AglcQuote"[\s\S]*?<\/w:style>/.exec(styles)?.[0] ?? '').toContain('<w:sz w:val="22"/>');
 		expect(document).toContain('<w:pStyle w:val="AglcQuote"/>');
 		// Footnotes are kept whole on one page by default.
-		expect(/<w:style [^>]*w:styleId="FootnoteText"[\s\S]*?<\/w:style>/.exec(styles)![0]).toContain('<w:keepLines/>');
+		// Short footnotes are kept whole on one page by default, on their own paragraphs, not by the style
+		// (so long footnotes can continue on the next page, leaving no large gap).
+		expect(/<w:style [^>]*w:styleId="FootnoteText"[\s\S]*?<\/w:style>/.exec(styles)![0]).not.toContain('<w:keepLines/>');
+		expect(footnotes).toContain('<w:keepLines/>');
 				// Footnotes use the 10pt single-spaced footnote style, not the body style.
 		expect((footnotes.match(/<w:pStyle w:val="FootnoteText"\/>/g) ?? []).length).toBe(2);
 	});

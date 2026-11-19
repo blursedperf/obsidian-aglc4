@@ -6,8 +6,8 @@
  * a window onto the full paragraph, so the browser wraps lines exactly as it did when measuring.
  */
 import { type ExportOptions, prepare } from '../export/docx';
-import { type Block, type Inline, type MdDocument, parseMarkdown } from '../export/markdown';
-import { CONTENT_HEIGHT, CONTENT_WIDTH, PAGE, type ParaStyle, type Styles, NUMBER_SPACE, cssFontFamily, lineHeight, styles } from './metrics';
+import { type Block, type Inline, type MdDocument, footnoteParagraphs, parseMarkdown } from '../export/markdown';
+import { CONTENT_HEIGHT, CONTENT_WIDTH, PAGE, type ParaStyle, type Styles, NUMBER_SPACE, cssFontFamily, keepFootnoteTogether, lineHeight, styles } from './metrics';
 import { type PBlock, type PNote, type Page, paginate } from './paginate';
 
 const PX = 96 / 72;
@@ -21,6 +21,8 @@ interface Item {
 	atomic?: boolean;
 	/** Start a new page before this paragraph (the bibliography). */
 	pageBreak?: boolean;
+	/** For a footnote: keep it whole on one page (see keepFootnoteTogether). */
+	keepTogether?: boolean;
 }
 
 export interface PreviewLayout {
@@ -118,7 +120,7 @@ class Builder {
 			first = false;
 			this.inline(p, pe, { italic: false, bold: false }, true);
 		}
-		this.notes.push({ el, style, lh: lineHeight(style, this.opts.font) });
+		this.notes.push({ el, style, lh: lineHeight(style, this.opts.font), keepTogether: keepFootnoteTogether(footnoteParagraphs(content), this.opts) });
 	}
 
 	private quoteDepth = 0;
@@ -268,6 +270,7 @@ export async function layoutNote(markdown: string, opts: ExportOptions, host: HT
 	const pnotes: PNote[] = b.notes.map((it) => ({
 		lines: Math.max(1, Math.round(it.el.getBoundingClientRect().height / (it.lh * PX))),
 		lineHeight: it.lh,
+		keepTogether: it.keepTogether === true,
 	}));
 	for (const it of [...b.blocks, ...b.notes]) it.el.detach();
 

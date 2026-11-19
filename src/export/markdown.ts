@@ -446,3 +446,10 @@ export function walkBlocks(blocks: Block[], fn: (nodes: Inline[]) => void): void
 		}
 	}
 }
+
+/** The plain text of each paragraph of a footnote (including those in quotations and lists). */
+export function footnoteParagraphs(blocks: Block[]): string[] {
+	const out: string[] = [];
+	walkBlocks(blocks, (nodes) => { out.push(plainText(nodes)); });
+	return out.length > 0 ? out : [''];
+}

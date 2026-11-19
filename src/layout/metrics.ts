@@ -107,7 +107,7 @@ export function styles(o: LayoutOptions): Styles {
 	return {
 		body: { size: o.fontSize, multiple: o.lineSpacing, before: 0, after: 6 },
 		quote: { size: o.fontSize - 1, multiple: o.lineSpacing, before: 0, after: 6 },
-		footnote: { size: o.footnoteSize, multiple: 1, before: 0, after: 0, keepLines: o.keepFootnotesTogether === true },
+		footnote: { size: o.footnoteSize, multiple: 1, before: 0, after: 0 },
 		headings: o.headingScheme === 'aglc' ? [
 			// AGLC4, at body size:
 			// I    numeral upright; heading in large and small capitals; centred
@@ -135,6 +135,32 @@ export function styles(o: LayoutOptions): Styles {
 		indent: 36,
 		hanging: 18,
 	};
+}
+
+/**
+ * With "Keep footnotes on one page", a footnote of at most this many lines is kept whole on the page of
+ * its reference (the line citing it moves to the next page with it). A longer footnote may continue on
+ * the next page, as Word does by default, so it does not leave a large gap at the bottom of a page.
+ */
+export const KEEP_TOGETHER_MAX_LINES = 3;
+
+/**
+ * Average width of a character as a fraction of the font size, for estimating how many lines a footnote
+ * takes. The Word export cannot measure lines, so the export and the page preview both use this
+ * estimate, which keeps them in agreement.
+ */
+const AVERAGE_CHARACTER_EM = 0.5;
+
+/** Estimated lines of footnote text, given each paragraph's text, at the footnote size. */
+export function estimatedFootnoteLines(paragraphs: string[], footnoteSize: number): number {
+	const perLine = Math.max(1, Math.floor(CONTENT_WIDTH / (footnoteSize * AVERAGE_CHARACTER_EM)));
+	// The first paragraph starts with the footnote number and a space.
+	return paragraphs.reduce((n, text, i) => n + Math.max(1, Math.ceil((text.length + (i === 0 ? 3 : 0)) / perLine)), 0);
+}
+
+/** Whether a footnote is kept whole on one page: the setting is on, and the footnote is short. */
+export function keepFootnoteTogether(paragraphs: string[], o: Pick<LayoutOptions, 'keepFootnotesTogether' | 'footnoteSize'>): boolean {
+	return o.keepFootnotesTogether === true && estimatedFootnoteLines(paragraphs, o.footnoteSize) <= KEEP_TOGETHER_MAX_LINES;
 }
 
 /** Height of one line of a paragraph style. */
