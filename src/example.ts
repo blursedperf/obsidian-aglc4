@@ -26,7 +26,7 @@ TRY THE PLUGIN ON THIS ESSAY. (This box is a comment: you see it while editing, 
 7. Version history. Change anything, then run "Show version history" (or click the clock icon) to see what changed and restore an earlier version.
 8. This note only. The property "aglc" turns the plugin on for this note. In settings, "Use AGLC4 in" can limit the plugin to notes like this one.
 
-Delete this note whenever you like: "Create example essay" makes a new one.
+Delete this note whenever you like: "Create example essay" makes a new one. The full user guide is at github.com/blursedperf/obsidian-aglc4/tree/main/docs
 %%
 
 ## Introduction

@@ -150,7 +150,7 @@ const caseName: ElementSpec = {
 	check: (m) => {
 		const out: Issue[] = [];
 		if (!isItalic(m.text)) {
-			out.push(issue(m, 'case-italics', 'error', 'Case names are italicised.', 'r 2.1', { from: m.from, to: m.to, insert: `*${m.text.trim()}*`, label: 'Italicise case name' }));
+			out.push(issue(m, 'case-italics', 'error', 'Case names are italicised.', 'r 2.1.1', { from: m.from, to: m.to, insert: `*${m.text.trim()}*`, label: 'Italicise case name' }));
 		}
 		const name = stripItalic(m.text);
 		const nameAt = m.from + m.text.indexOf(name);
@@ -179,15 +179,27 @@ const caseName: ElementSpec = {
 			if (!x) continue;
 			reported.add(rule);
 			const at = nameAt + x.index;
-			out.push(issue(m, rule, severity, message, 'r 2.1', { from: at, to: at + x[0].length, insert: replace(x) }, at, at + x[0].length));
+			out.push(issue(m, rule, severity, message, PARTY_RULE_REFS[rule] ?? 'r 2.1', { from: at, to: at + x[0].length, insert: replace(x) }, at, at + x[0].length));
 		}
 		const vs = /\s(vs\.?|v\.|versus)\s/.exec(m.text);
 		if (vs) {
 			const at = m.from + vs.index + 1;
-			out.push(issue(m, 'case-v', 'error', 'Separate the parties with "v" (no full stop).', 'r 2.1', { from: at, to: at + vs[1]!.length, insert: 'v' }, at, at + vs[1]!.length));
+			out.push(issue(m, 'case-v', 'error', 'Separate the parties with "v" (no full stop).', 'r 2.1.11', { from: at, to: at + vs[1]!.length, insert: 'v' }, at, at + vs[1]!.length));
 		}
 		return out;
 	},
+};
+
+/** The AGLC4 rule for each check on parties' names. */
+const PARTY_RULE_REFS: Record<string, string> = {
+	'case-number': 'r 2.1.13',
+	'case-crown': 'r 2.1.4',
+	'case-others': 'r 2.1.1',
+	'case-company': 'r 2.1.2',
+	'case-state': 'r 2.1.3',
+	'case-officer': 'r 2.1.7',
+	'case-re': 'r 2.1.8',
+	'case-ex-parte': 'r 2.1.9',
 };
 
 const pinpoints: ElementSpec = {
@@ -753,22 +765,22 @@ function journalChecks(m: ElementMatch, ctx: CheckContext): Issue[] {
 	const to = italic ? m.to - 1 : m.to;
 	const name = ctx.text.slice(from, to);
 	if (!italic) {
-		out.push(issue(m, 'journal-italics', 'error', 'Journal titles are italicised.', 'ch 5', { from: at, to: m.to, insert: `*${raw}*` }, at, m.to));
+		out.push(issue(m, 'journal-italics', 'error', 'Journal titles are italicised.', 'r 5.5', { from: at, to: m.to, insert: `*${raw}*` }, at, m.to));
 	}
 	if (!/[a-z]/.test(name) || JOURNAL_ABBREVIATION.test(name)) {
-		out.push(issue(m, 'journal-abbreviation', 'warning', 'Give the journal\'s full title, not an abbreviation.', 'ch 5', undefined, from, to));
+		out.push(issue(m, 'journal-abbreviation', 'warning', 'Give the journal\'s full title, not an abbreviation.', 'r 5.5', undefined, from, to));
 		return out;
 	}
 	if (/^The\s/.test(name)) {
-		out.push(issue(m, 'journal-the', 'error', 'Leave out "The" at the start of a journal title.', 'ch 5', { from, to: from + 4, insert: '' }, from, from + 3));
+		out.push(issue(m, 'journal-the', 'error', 'Leave out "The" at the start of a journal title.', 'r 5.5', { from, to: from + 4, insert: '' }, from, from + 3));
 	}
 	const amp = name.indexOf('&');
 	if (amp >= 0) {
-		out.push(issue(m, 'journal-ampersand', 'warning', 'Write "and", not "&", in a journal title.', 'ch 5', { from: from + amp, to: from + amp + 1, insert: 'and' }, from + amp, from + amp + 1));
+		out.push(issue(m, 'journal-ampersand', 'warning', 'Write "and", not "&", in a journal title.', 'r 5.5', { from: from + amp, to: from + amp + 1, insert: 'and' }, from + amp, from + amp + 1));
 	}
 	const colon = name.indexOf(':');
 	if (colon > 0) {
-		out.push(issue(m, 'journal-subtitle', 'info', 'Omit the journal\'s subtitle, unless it is needed to identify the journal.', 'ch 5', { from: from + colon, to, insert: '' }, from + colon, to));
+		out.push(issue(m, 'journal-subtitle', 'info', 'Omit the journal\'s subtitle, unless it is needed to identify the journal.', 'r 5.5', { from: from + colon, to, insert: '' }, from + colon, to));
 	}
 	if (out.length === 0) out.push(...titleCaseIssue(m, from, to, ctx));
 	return out;

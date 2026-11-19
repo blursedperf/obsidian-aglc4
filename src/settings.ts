@@ -75,7 +75,7 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 
 type Key = keyof Aglc4Settings;
 
-const EXAMPLE = {
+export const EXAMPLE = {
 	name: 'Create example essay',
 	desc: 'Add a short, correctly cited essay to the vault, with a tour of what to try and some citations with mistakes to fix. A new note is created each time; nothing is replaced.',
 };
@@ -97,7 +97,7 @@ interface Group {
 }
 
 /** Every setting, defined once: rendered declaratively on Obsidian 1.13+ and by display() before that. */
-const GROUPS: Group[] = [
+export const GROUPS: Group[] = [
 	{
 		heading: 'Notes',
 		items: [
