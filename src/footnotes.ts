@@ -221,6 +221,36 @@ export interface TidyResult {
 	changed: boolean;
 	/** Old label → new label. */
 	relabelled: Map<string, string>;
+	/** Set when the tidied text failed the safety check and the text was left as it was. */
+	unsafe?: boolean;
+}
+
+/** What tidying must not change: the text outside footnotes, and the text of every footnote. */
+function essentials(text: string): { body: string; notes: string[] } {
+	const scan = scanFootnotes(text);
+	const cuts = [
+		...scan.defs.map((d) => ({ from: d.from, to: d.to, insert: ' ' })),
+		...scan.refs.map((r) => ({ from: r.from, to: r.to, insert: '[^]' })),
+		...scan.inlines.map((n) => ({ from: n.from, to: n.to, insert: '[^]' })),
+	].sort((a, b) => b.from - a.from);
+	let body = text;
+	for (const c of cuts) body = body.slice(0, c.from) + c.insert + body.slice(c.to);
+	const norm = (t: string) => t.replace(/\s+/g, ' ').trim();
+	const notes = [...scan.defs.map((d) => norm(dedent(d.content))), ...scan.inlines.map((n) => norm(n.content))].sort();
+	return { body: norm(body), notes };
+}
+
+/**
+ * True when `after` keeps everything in `before`: the same text outside footnotes (apart from footnote
+ * labels and where the definitions are), and the text of every footnote. Checked before tidied text
+ * replaces a note, so that a fault can never lose writing.
+ */
+export function preservesContent(before: string, after: string): boolean {
+	const a = essentials(before);
+	const b = essentials(after);
+	if (a.notes.length !== b.notes.length || a.notes.some((n, i) => n !== b.notes[i])) return false;
+	// The bibliography moves after the definitions; with them cut out, the order is unchanged.
+	return a.body === b.body;
 }
 
 /** Remove the indentation of continuation lines in a definition's content. */
@@ -320,6 +350,7 @@ export function tidyFootnotes(text: string, opts: TidyOptions): TidyResult {
 
 	let out = defsOut.length > 0 ? `${body}\n\n${defsOut.join('\n')}\n` : `${body}\n`;
 	if (back) out = `${out.replace(/\s+$/, '')}\n\n${back}\n`;
+	if (out !== text && !preservesContent(text, out)) return { text, changed: false, relabelled: new Map(), unsafe: true };
 	return { text: out, changed: out !== text, relabelled };
 }
 

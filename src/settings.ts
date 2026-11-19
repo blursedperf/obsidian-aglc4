@@ -28,6 +28,10 @@ export interface Aglc4Settings {
 	closeFootnotePane: boolean;
 	keepFootnotesTogether: boolean;
 	bibliography: boolean;
+	historyEnabled: boolean;
+	historyFolder: string;
+	historyInterval: number;
+	historyKeepAll: boolean;
 }
 
 export const DEFAULT_SETTINGS: Aglc4Settings = {
@@ -56,6 +60,10 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	closeFootnotePane: true,
 	keepFootnotesTogether: true,
 	bibliography: false,
+	historyEnabled: true,
+	historyFolder: '.aglc-history',
+	historyInterval: 2,
+	historyKeepAll: false,
 };
 
 type Key = keyof Aglc4Settings;
@@ -114,6 +122,15 @@ const GROUPS: Group[] = [
 		],
 	},
 	{
+		heading: 'Version history',
+		items: [
+			{ name: 'Keep version history', desc: 'Save versions of your notes as you write (and before the plugin rewrites one, or overwrites an exported Word file), so any earlier version can be restored, as in Word or Google Docs. Kept on this device, in the folder below. Open it with "Show version history" or the clock icon.', control: { type: 'toggle', key: 'historyEnabled' } },
+			{ name: 'History folder', desc: 'Vault folder for the history. A folder starting with "." is hidden from the file list. If you back up or sync your vault folder (iCloud, Dropbox, OneDrive, Time Machine), the history is backed up with it. Changing the folder starts a new history; the old folder is left where it is.', control: { type: 'text', key: 'historyFolder', placeholder: '.aglc-history' } },
+			{ name: 'Minutes between versions', desc: 'While you write, save a version at most this often. A version is also saved when you open or leave a note.', control: { type: 'slider', key: 'historyInterval', min: 1, max: 30, step: 1 } },
+			{ name: 'Keep every version', desc: 'Keep every version forever. When off, every version from the last day is kept, then one per hour for a month, then one per day, forever. Named versions are always kept.', control: { type: 'toggle', key: 'historyKeepAll' } },
+		],
+	},
+	{
 		heading: 'Export and page preview',
 		items: [
 			{ name: 'Export folder', desc: 'Vault folder for exported files. Leave empty to save next to the note.', control: { type: 'text', key: 'exportFolder', placeholder: 'Exports' } },
@@ -161,6 +178,9 @@ export class Aglc4SettingTab extends PluginSettingTab {
 				break;
 			case 'font':
 				s.font = String(value).trim() || DEFAULT_SETTINGS.font;
+				break;
+			case 'historyFolder':
+				s.historyFolder = String(value).trim().replace(/^\/+|\/+$/g, '') || DEFAULT_SETTINGS.historyFolder;
 				break;
 			default:
 				s[key] = value;

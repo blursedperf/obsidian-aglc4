@@ -12,6 +12,9 @@ import { type ExportOptions, exportDocx } from './export/docx';
 import { exportHtml } from './export/html';
 import { PAGE_PREVIEW_VIEW, PagePreviewView } from './layout/view';
 import { importDocx } from './import/docx';
+import { HistoryManager } from './history/manager';
+import { HISTORY_VIEW, HistoryView, PromptModal, formatDay, formatTime } from './history/view';
+import type { Entry } from './history/store';
 import { type Aglc4Settings, Aglc4SettingTab, DEFAULT_SETTINGS } from './settings';
 
 /** Obsidian's editor exposes its CodeMirror view as `cm`. */
@@ -26,6 +29,53 @@ function replaceText(editor: Editor, next: string): void {
 	const change = minimalChange(current, next);
 	if (!change) return;
 	editor.replaceRange(change.insert, editor.offsetToPos(change.from), editor.offsetToPos(change.to));
+}
+
+/** Offers a choice of actions. */
+class ChoiceModal extends Modal {
+	constructor(app: App, title: string, private message: string, private choices: { label: string; cta?: boolean; action: () => void }[]) {
+		super(app);
+		this.setTitle(title);
+	}
+
+	onOpen() {
+		this.contentEl.createEl('p', { text: this.message });
+		const row = new Setting(this.contentEl);
+		row.addButton((b) => b.setButtonText('Cancel').onClick(() => this.close()));
+		for (const c of this.choices) {
+			row.addButton((b) => {
+				b.setButtonText(c.label).onClick(() => { this.close(); c.action(); });
+				if (c.cta) b.setCta();
+			});
+		}
+	}
+
+	onClose() {
+		this.contentEl.empty();
+	}
+}
+
+/** Picks a deleted note to restore from the history. */
+class DeletedModal extends SuggestModal<Entry> {
+	constructor(app: App, private entries: Entry[], private onChoose: (e: Entry) => void) {
+		super(app);
+		this.setPlaceholder('Restore a deleted note from version history');
+	}
+
+	getSuggestions(query: string): Entry[] {
+		const q = query.toLowerCase();
+		return this.entries.filter((e) => e.path.toLowerCase().includes(q));
+	}
+
+	renderSuggestion(e: Entry, el: HTMLElement): void {
+		el.createDiv({ text: e.path });
+		const last = e.versions[e.versions.length - 1]!;
+		el.createDiv({ cls: 'aglc-suggestion-hint', text: `Deleted ${formatDay(e.deleted ?? 0)}, ${formatTime(e.deleted ?? 0)} · ${e.versions.length} ${e.versions.length === 1 ? 'version' : 'versions'} · last saved ${formatDay(last.time)}, ${formatTime(last.time)}` });
+	}
+
+	onChooseSuggestion(e: Entry): void {
+		this.onChoose(e);
+	}
 }
 
 /** Asks before an action that replaces text. */
@@ -84,9 +134,18 @@ export default class Aglc4Plugin extends Plugin {
 	private statusEl: HTMLElement | null = null;
 	private lastFile: TFile | null = null;
 	private lastAnalysis: DocumentAnalysis | null = null;
+	readonly history = new HistoryManager(this.app, () => this.settings);
 
 	async onload() {
 		await this.loadSettings();
+		this.history.register(this);
+		this.registerView(HISTORY_VIEW, (leaf) => new HistoryView(leaf, {
+			history: this.history,
+			restore: (file, text, label) => this.restoreNote(file, text, label),
+			restoreExport: (path, data, label) => this.restoreExport(path, data, label),
+			exportPaths: (file) => (['docx', 'html'] as const).map((f) => this.exportPath(file, f)),
+		}));
+		this.addRibbonIcon('history', 'Show version history', () => { void this.openHistory(); });
 		this.addSettingTab(new Aglc4SettingTab(this.app, this));
 
 		const getSettings = () => this.settings;
@@ -122,6 +181,7 @@ export default class Aglc4Plugin extends Plugin {
 				return;
 			}
 			if (!this.isMarkdown(file)) return;
+			menu.addItem((item) => item.setTitle('Version history').setIcon('history').onClick(() => { void this.openHistory(file); }));
 			menu.addItem((item) => item.setTitle('Export to Word with AGLC4 footnotes').setIcon('file-output').onClick(() => { void this.exportFile(file, 'docx'); }));
 			menu.addItem((item) => item.setTitle('Export to HTML with AGLC4 footnotes').setIcon('file-code').onClick(() => { void this.exportFile(file, 'html'); }));
 		}));
@@ -162,12 +222,17 @@ export default class Aglc4Plugin extends Plugin {
 		this.addCommand({
 			id: 'tidy-footnotes',
 			name: 'Move footnotes to the bottom and renumber',
-			editorCallback: (editor) => {
+			editorCallback: (editor, ctx) => {
 				const r = tidyFootnotes(editor.getValue(), { renumber: this.settings.renumber, convertInline: this.settings.convertInline });
+				if (r.unsafe) {
+					new Notice('The footnotes were not moved: the result failed a safety check, so the note was left as it is.');
+					return;
+				}
 				if (!r.changed) {
 					new Notice('Footnotes are already tidy.');
 					return;
 				}
+				this.backup(ctx.file, editor.getValue(), 'Before tidying footnotes');
 				replaceText(editor, r.text);
 				new Notice('Footnotes moved to the bottom of the note.');
 			},
@@ -180,7 +245,7 @@ export default class Aglc4Plugin extends Plugin {
 		this.addCommand({
 			id: 'fix-all',
 			name: 'Fix all automatically fixable problems',
-			editorCallback: (editor) => {
+			editorCallback: (editor, ctx) => {
 				const text = editor.getValue();
 				let current = text;
 				let total = 0;
@@ -196,21 +261,48 @@ export default class Aglc4Plugin extends Plugin {
 					new Notice('Nothing to fix automatically.');
 					return;
 				}
+				this.backup(ctx.file, text, 'Before fixing all problems');
 				replaceText(editor, current);
 				const left = analyseDocument(current, { disabled: new Set(this.settings.disabledRules), showInfo: false }).issues.length;
 				new Notice(`Applied ${total} ${total === 1 ? 'fix' : 'fixes'}.${left > 0 ? ` ${left} ${left === 1 ? 'problem needs' : 'problems need'} your attention.` : ''}`);
 			},
 		});
 		this.addCommand({
+			id: 'show-version-history',
+			name: 'Show version history',
+			callback: () => { void this.openHistory(); },
+		});
+		this.addCommand({
+			id: 'save-named-version',
+			name: 'Save a named version of this note',
+			editorCallback: (editor, ctx) => {
+				const file = ctx.file;
+				if (!file) return;
+				const text = editor.getValue();
+				new PromptModal(this.app, 'Name this version', 'Name', '', (name) => {
+					if (!name.trim()) return;
+					void this.history.snapshot(file.path, text, { name: name.trim() }).then((ok) => {
+						new Notice(ok ? `Version "${name.trim()}" saved.` : 'Version history is turned off in settings.');
+					});
+				}).open();
+			},
+		});
+		this.addCommand({
+			id: 'restore-deleted-note',
+			name: 'Restore a deleted note from version history',
+			callback: () => { void this.restoreDeleted(); },
+		});
+		this.addCommand({
 			id: 'insert-bibliography',
 			name: 'Insert bibliography of cited sources',
-			editorCallback: (editor) => {
+			editorCallback: (editor, ctx) => {
 				const r = withBibliography(editor.getValue(), this.settings.aglcTopLevel);
 				if (!r) {
 					new Notice('No source is cited in full in the footnotes, so there is nothing to list in a bibliography.');
 					return;
 				}
 				const apply = () => {
+					this.backup(ctx.file, editor.getValue(), r.replaced ? 'Before replacing the bibliography' : 'Before inserting a bibliography');
 					replaceText(editor, r.text);
 					new Notice(`Bibliography ${r.replaced ? 'replaced' : 'added'}: ${r.sources} ${r.sources === 1 ? 'source' : 'sources'}. Add any sources you relied on but did not cite.`);
 				};
@@ -456,6 +548,7 @@ export default class Aglc4Plugin extends Plugin {
 		const current = this.app.workspace.getActiveFile();
 		const previous = this.lastFile;
 		this.lastFile = current;
+		if (previous && previous !== current) this.history.flush(previous);
 		if (!this.settings.tidyOnLeave || !previous || previous === current || previous.extension !== 'md') return;
 		if (!this.app.vault.getAbstractFileByPath(previous.path)) return;
 		const opts = { renumber: this.settings.renumber, convertInline: this.settings.convertInline };
@@ -471,8 +564,17 @@ export default class Aglc4Plugin extends Plugin {
 		});
 		if (openEditor) {
 			const ed: Editor = openEditor;
-			replaceText(ed, tidy(ed.getValue()));
+			const before = ed.getValue();
+			const after = tidy(before);
+			if (after === before) return;
+			this.backup(previous, before, 'Before tidying footnotes');
+			replaceText(ed, after);
 		} else {
+			// Not open anywhere: the change cannot be undone in an editor, so it is only made once the
+			// text before it is safely in the version history (or history is off).
+			const before = await this.app.vault.read(previous);
+			if (tidy(before) === before) return;
+			if (this.history.enabled && !(await this.history.snapshot(previous.path, before, { label: 'Before tidying footnotes' }))) return;
 			await this.app.vault.process(previous, tidy);
 		}
 	}
@@ -551,35 +653,93 @@ export default class Aglc4Plugin extends Plugin {
 		};
 	}
 
-	private async exportFile(file: TFile, format: 'docx' | 'html') {
-		const markdown = await this.app.vault.cachedRead(file);
-		const analysis = analyseDocument(markdown, { disabled: new Set(this.settings.disabledRules), showInfo: false });
-		const errors = analysis.issues.filter((i) => i.severity === 'error').length;
+	/** Where a note's export is written. */
+	exportPath(file: TFile, format: 'docx' | 'html'): string {
+		const folder = this.settings.exportFolder || file.parent?.path || '';
+		return normalizePath(`${folder}/${file.basename}.${format}`);
+	}
 
+	/** The first free path like `path` ("Essay 2.docx", "Essay 3.docx" …). */
+	private freePath(path: string): string {
+		const dot = path.lastIndexOf('.');
+		const base = path.slice(0, dot);
+		const ext = path.slice(dot);
+		let n = 2;
+		while (this.app.vault.getAbstractFileByPath(`${base} ${n}${ext}`)) n++;
+		return `${base} ${n}${ext}`;
+	}
+
+	/** True when an exported file was changed (eg edited in Word) since the plugin last wrote it. */
+	private async changedSinceExport(path: string): Promise<boolean> {
+		const stat = await this.app.vault.adapter.stat(path);
+		if (!stat) return false;
+		const written = this.history.enabled ? await this.history.getWritten(path).catch(() => null) : null;
+		return !written || written.mtime !== stat.mtime || written.size !== stat.size;
+	}
+
+	private async exportFile(file: TFile, format: 'docx' | 'html') {
 		const folder = this.settings.exportFolder || file.parent?.path || '';
 		if (this.settings.exportFolder && !this.app.vault.getAbstractFileByPath(folder)) {
 			await this.app.vault.createFolder(folder);
 		}
-		const path = normalizePath(`${folder}/${file.basename}.${format}`);
+		const path = this.exportPath(file, format);
+		if (this.app.vault.getAbstractFileByPath(path) instanceof TFile && (await this.changedSinceExport(path))) {
+			const kept = this.history.enabled ? ' If you replace it, the current file is kept in the note\'s version history and can be restored.' : '';
+			new ChoiceModal(
+				this.app,
+				`${file.basename}.${format} already exists`,
+				`${path} has changed since it was last exported from this note (it may have been edited in Word), or it was not exported by this plugin.${kept}`,
+				[
+					{ label: 'Save as a new file', action: () => { void this.writeExport(file, format, this.freePath(path)); } },
+					{ label: 'Replace it', cta: true, action: () => { void this.writeExport(file, format, path); } },
+				],
+			).open();
+			return;
+		}
+		await this.writeExport(file, format, path);
+	}
+
+	private async writeExport(file: TFile, format: 'docx' | 'html', path: string) {
+		const markdown = await this.app.vault.cachedRead(file);
+		const analysis = analyseDocument(markdown, { disabled: new Set(this.settings.disabledRules), showInfo: false });
+		const errors = analysis.issues.filter((i) => i.severity === 'error').length;
 		try {
 			let footnotes: number;
 			let warnings: string[] = [];
+			let data: string | ArrayBuffer;
 			if (format === 'docx') {
 				const r = await exportDocx(markdown, this.exportOptions(file));
 				footnotes = r.footnotes;
 				warnings = r.warnings;
-				const existing = this.app.vault.getAbstractFileByPath(path);
-				if (existing instanceof TFile) await this.app.vault.modifyBinary(existing, r.data);
-				else await this.app.vault.createBinary(path, r.data);
+				data = r.data;
 			} else {
 				const opts = this.exportOptions(file);
 				const r = exportHtml(markdown, { ...opts, title: opts.title ?? file.basename });
 				footnotes = r.footnotes;
-				const existing = this.app.vault.getAbstractFileByPath(path);
-				if (existing instanceof TFile) await this.app.vault.modify(existing, r.html);
-				else await this.app.vault.create(path, r.html);
+				data = r.html;
 			}
+			const existing = this.app.vault.getAbstractFileByPath(path);
+			let kept = false;
+			if (existing instanceof TFile) {
+				// Keep the file being replaced. If that fails, do not replace it.
+				if (this.history.enabled) {
+					const old = format === 'docx' ? await this.app.vault.readBinary(existing) : await this.app.vault.read(existing);
+					if (!(await this.history.snapshot(path, old, { label: 'Before exporting again' }))) {
+						new Notice(`Export cancelled: a copy of the existing ${path} could not be kept, so it was not replaced.`);
+						return;
+					}
+					kept = true;
+				}
+				if (typeof data === 'string') await this.app.vault.modify(existing, data);
+				else await this.app.vault.modifyBinary(existing, data);
+			} else if (typeof data === 'string') {
+				await this.app.vault.create(path, data);
+			} else {
+				await this.app.vault.createBinary(path, data);
+			}
+			await this.recordWritten(path);
 			const notes = [`Exported ${path} with ${footnotes} ${footnotes === 1 ? 'footnote' : 'footnotes'}.`];
+			if (kept) notes.push('The file it replaced is kept in the note\'s version history.');
 			if (errors > 0) notes.push(`${errors} AGLC4 ${errors === 1 ? 'error was' : 'errors were'} exported as written.`);
 			notes.push(...warnings);
 			new Notice(notes.join('\n'), 8000);
@@ -589,8 +749,112 @@ export default class Aglc4Plugin extends Plugin {
 		}
 	}
 
+	/** Remember an exported file's state, to notice if it is later changed elsewhere. */
+	private async recordWritten(path: string) {
+		if (!this.history.enabled) return;
+		const stat = await this.app.vault.adapter.stat(path);
+		if (stat) await this.history.setWritten(path, { mtime: stat.mtime, size: stat.size }).catch(() => undefined);
+	}
+
+	// -----------------------------------------------------------------------------------------------------
+	// Version history
+
+	/** Keep the text before a change the plugin makes in an editor (which Undo can also reverse). */
+	private backup(file: TFile | null, text: string, label: string) {
+		if (file && this.history.enabled) void this.history.snapshot(file.path, text, { label });
+	}
+
+	private editorFor(file: TFile): Editor | null {
+		let found: Editor | null = null;
+		this.app.workspace.iterateAllLeaves((leaf) => {
+			if (!found && leaf.view instanceof MarkdownView && leaf.view.file === file) found = leaf.view.editor;
+		});
+		return found;
+	}
+
+	/** Restore a note's text, keeping the current text in the history first. */
+	private async restoreNote(file: TFile, text: string, label: string) {
+		const editor = this.editorFor(file);
+		const current = editor ? editor.getValue() : await this.app.vault.read(file);
+		if (current === text) return;
+		if (this.history.enabled && !(await this.history.snapshot(file.path, current, { label }))) {
+			new Notice('Not restored: the current text could not be kept in the version history first.');
+			return;
+		}
+		if (editor) replaceText(editor, text);
+		else await this.app.vault.modify(file, text);
+	}
+
+	/** Restore an earlier copy of an exported file, keeping the current one in the history first. */
+	private async restoreExport(path: string, data: string | ArrayBuffer, label: string) {
+		const existing = this.app.vault.getAbstractFileByPath(path);
+		if (existing instanceof TFile) {
+			const old = typeof data === 'string' ? await this.app.vault.read(existing) : await this.app.vault.readBinary(existing);
+			if (!(await this.history.snapshot(path, old, { label }))) {
+				new Notice('Not restored: the current file could not be kept in the version history first.');
+				return;
+			}
+			if (typeof data === 'string') await this.app.vault.modify(existing, data);
+			else await this.app.vault.modifyBinary(existing, data);
+		} else if (typeof data === 'string') {
+			await this.app.vault.create(path, data);
+		} else {
+			await this.app.vault.createBinary(path, data);
+		}
+		await this.recordWritten(path);
+		new Notice(`Restored ${path}.`);
+	}
+
+	private async openHistory(file?: TFile) {
+		if (file && this.app.workspace.getActiveFile() !== file) await this.app.workspace.getLeaf(false).openFile(file);
+		const existing = this.app.workspace.getLeavesOfType(HISTORY_VIEW)[0];
+		if (existing) {
+			await this.app.workspace.revealLeaf(existing);
+			return;
+		}
+		const leaf = this.app.workspace.getRightLeaf(false) ?? this.app.workspace.getLeaf('split');
+		await leaf.setViewState({ type: HISTORY_VIEW, active: false });
+		await this.app.workspace.revealLeaf(leaf);
+	}
+
+	private async restoreDeleted() {
+		if (!this.history.enabled) {
+			new Notice('Version history is turned off in settings.');
+			return;
+		}
+		const entries = (await this.history.deleted()).filter((e) => e.path.endsWith('.md'));
+		if (entries.length === 0) {
+			new Notice('No deleted notes in the version history.');
+			return;
+		}
+		new DeletedModal(this.app, entries, (e) => {
+			void (async () => {
+				const newest = e.versions[e.versions.length - 1]!;
+				let text: string | ArrayBuffer;
+				try {
+					text = await this.history.readDeleted(e, newest);
+				} catch (err) {
+					new Notice(err instanceof Error ? err.message : String(err));
+					return;
+				}
+				if (typeof text !== 'string') return;
+				const path = this.app.vault.getAbstractFileByPath(e.path) ? this.freePath(e.path) : e.path;
+				const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+				if (folder && !this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+				await this.history.undelete(e, path);
+				const file = await this.app.vault.create(path, text);
+				await this.app.workspace.getLeaf('tab').openFile(file);
+				new Notice(`Restored ${path} as last saved ${formatDay(newest.time)}, ${formatTime(newest.time)}. Its earlier versions are in its version history.`);
+			})();
+		}).open();
+	}
+
 	// -----------------------------------------------------------------------------------------------------
 	// Settings
+
+	onunload() {
+		this.history.flushAll();
+	}
 
 	async loadSettings() {
 		const data = (await this.loadData()) as Partial<Aglc4Settings> | null;

@@ -161,6 +161,21 @@ These rules were checked against PDFs saved from Word (Word for the web): on the
 
 The preview is a guide, not a guarantee. Word can differ by a line where a paragraph ends within a point or so of the bottom of a page. Tables, lists and code blocks are laid out more approximately than ordinary paragraphs. Pages are drawn black on white whatever the theme.
 
+## Version history and protection against data loss
+
+The plugin keeps a version history of your notes, so any earlier version can be seen and restored, as in Word or Google Docs. It is on by default.
+
+- **Saved as you write.** A version is saved at most every 2 minutes while you write (with the latest text), and whenever you open or leave a note. Versions identical to the last are not saved twice.
+- **Saved before every change the plugin makes.** Before it tidies footnotes, fixes all problems, inserts a bibliography or restores a version, the text as it was is saved first, labelled with what happened ("Before tidying footnotes").
+- **Exports never lost.** Exporting again does not silently replace a Word or HTML file you have changed since (for example, edited in Word): you are asked whether to replace it or save a new file. A file that is replaced is kept in the history first, and if it cannot be kept, it is not replaced.
+- **Background changes are made safely.** Tidying a note that is not open (when you leave it) only happens once its text is in the history, and every tidy is checked before it is written: the text outside footnotes and the text of every footnote must be unchanged, or the note is left as it is.
+- **Deleted and renamed notes.** The history follows a note when it is renamed or moved. When a note is deleted, its history is kept: **Restore a deleted note from version history** brings it back.
+- **Kept for as long as you like.** Every version from the last day is kept, then one per hour for a month, then one per day, forever. Named versions are always kept, and **Keep every version** keeps everything. Versions are compressed: a typical essay's whole history takes a few MB.
+
+**Show version history** (command, the clock icon, or right-click a note) opens the history of the active note: its versions by day, and for the version you select, what restoring it would change. **Restore this version** replaces the note's text (Undo reverses it, and the text before is kept in the history); **Restore as a copy** opens it as a new note. **Save a named version of this note** (or the tag icon) marks a version, such as "Submitted draft". Earlier copies of the note's Word and HTML exports are listed there too, and can be restored.
+
+The history is kept in the vault, in the hidden folder `.aglc-history` (configurable). Each version is checked against a fingerprint when it is read, and every file is written so that a crash part-way through cannot damage the versions already saved. It is on the same disk as your notes, so it protects you from mistakes, bad edits and deletions, not from losing the device: for that, back up or sync the vault folder (iCloud, Dropbox, OneDrive, Time Machine), which backs up the history with it. Obsidian Sync does not sync hidden folders, so with Obsidian Sync the history stays on each device.
+
 ## Limits
 
 AGLC4 is a long and detailed guide. The plugin checks the structure and style that can be checked mechanically. Some things it cannot know:
