@@ -5,7 +5,7 @@
  *
  *   node scripts/offline-audit.mjs
  *
- * Checks the src folder of every package and plugin (.ts, .js, .mjs), main.js (when built) and styles.css.
+ * Checks src/**\/*.{ts,js,mjs}, main.js (when built) and styles.css.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -101,18 +101,8 @@ function check(path, text, rules) {
 	}
 }
 
-const codeFiles = [];
-// A repository whose plugin is at its root (as Legal Core's own repository is) has its source in src/.
-walk(join(ROOT, "src"), [".ts", ".js", ".mjs"], codeFiles);
-for (const top of ["packages", "plugins"]) {
-	if (!existsSync(join(ROOT, top))) continue;
-	for (const name of readdirSync(join(ROOT, top))) walk(join(ROOT, top, name, "src"), [".ts", ".js", ".mjs"], codeFiles);
-}
-// The built bundles: AGLC4 Citations at the root, other plugins in their folders.
+const codeFiles = walk(join(ROOT, "src"), [".ts", ".js", ".mjs"]);
 if (existsSync(join(ROOT, "main.js"))) codeFiles.push(join(ROOT, "main.js"));
-for (const name of existsSync(join(ROOT, "plugins")) ? readdirSync(join(ROOT, "plugins")) : []) {
-	if (existsSync(join(ROOT, "plugins", name, "main.js"))) codeFiles.push(join(ROOT, "plugins", name, "main.js"));
-}
 for (const path of codeFiles) {
 	check(path, stripComments(readFileSync(path, "utf8")), CODE_RULES);
 }

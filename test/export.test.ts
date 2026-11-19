@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import JSZip from 'jszip';
-import { DEFAULT_EXPORT, exportDocx, exportHtml, smartenQuotes } from '@legal-core/aglc';
-import { parseInline, plainText } from '@legal-core/md-pipeline';
+import { DEFAULT_EXPORT, exportDocx } from '../src/export/docx';
+import { exportHtml } from '../src/export/html';
+import { parseInline, plainText, smartenQuotes } from '../src/export/markdown';
 
 const NOTE = `---
 title: Test

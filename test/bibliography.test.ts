@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import JSZip from 'jszip';
-import { buildBibliography, withBibliography, numberHeadings, tidyFootnotes, analyseDocument, DEFAULT_EXPORT, exportDocx, exportHtml } from '@legal-core/aglc';
-import { scanFootnotes } from '@legal-core/md-pipeline';
-import { paginate } from '@legal-core/docx-engine';
+import { buildBibliography, withBibliography } from '../src/aglc/bibliography';
+import { numberHeadings } from '../src/layout/headings';
+import { scanFootnotes, tidyFootnotes } from '../src/footnotes';
+import { analyseDocument } from '../src/aglc/document';
+import { DEFAULT_EXPORT, exportDocx } from '../src/export/docx';
+import { exportHtml } from '../src/export/html';
+import { paginate } from '../src/layout/paginate';
 
 /** A note citing each footnote once, in order. */
 function note(footnotes: string[], body = ''): string {

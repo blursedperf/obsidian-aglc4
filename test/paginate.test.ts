@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type PBlock, type PNote, paginate } from '@legal-core/docx-engine';
+import { type PBlock, type PNote, paginate } from '../src/layout/paginate';
 
 const para = (lines: number, extra: Partial<PBlock> = {}): PBlock => ({ lines, lineHeight: 10, spaceBefore: 0, spaceAfter: 0, refs: [], ...extra });
 const note = (lines: number): PNote => ({ lines, lineHeight: 5 });

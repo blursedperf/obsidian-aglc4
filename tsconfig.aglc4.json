@@ -1,7 +1,0 @@
-{
-	"extends": "./tsconfig.json",
-	"include": [
-		"packages/*/src/**/*.ts",
-		"plugins/aglc4/src/**/*.ts"
-	]
-}

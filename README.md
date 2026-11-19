@@ -14,10 +14,6 @@ Write footnoted legal work in Obsidian to the *Australian Guide to Legal Citatio
 
 **Try it straight away:** run **Create example essay** from the command palette. It adds a short, correctly cited essay to your vault, with a tour of what to try and some citations with mistakes to fix.
 
-## Works on its own, and with Legal Core
-
-AGLC4 Citations is a complete plugin on its own: it needs nothing else installed. If you also install **Legal Core (Australia)**, the shared foundation of a suite of Australian legal-writing plugins, AGLC4 Citations shares the cases, legislation and sources your notes cite with it, so the other legal plugins you use see the same citations. It asks before sharing anything, only ever reads your notes, and exports exactly as before. See [Legal Core](docs/legal-core.md).
-
 ## User guide
 
 The full guide is in [`docs/`](docs/README.md). Start with [Getting started](docs/getting-started.md), or jump to:
@@ -42,4 +38,4 @@ See [Privacy](docs/privacy.md) for how this is checked, and how to verify that a
 
 ## Development
 
-This repository also holds Legal Core and the packages both plugins are built from. See [Development](docs/development.md) for the layout, building, testing and the Word fidelity check, and [`plugins/legal-core`](plugins/legal-core/README.md) for Legal Core.
+See [Development](docs/development.md) for building, testing and the Word fidelity check.

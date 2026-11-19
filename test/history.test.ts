@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type HistoryFs, HistoryCorruptError, HistoryStore, thinVersions, type Version } from '../plugins/aglc4/src/history/store';
+import { type HistoryFs, HistoryCorruptError, HistoryStore, thinVersions, type Version } from '../src/history/store';
 
 /** An in-memory file system. `failAfter` makes the n-th write or rename from now on throw, like a crash. */
 class MemFs implements HistoryFs {
@@ -182,8 +182,7 @@ describe('thinning', () => {
 	});
 });
 
-import { preservesContent } from '@legal-core/md-pipeline';
-import { tidyFootnotes } from '@legal-core/aglc';
+import { preservesContent, tidyFootnotes } from '../src/footnotes';
 import { VALID } from './corpus';
 
 describe('tidy safety check', () => {
@@ -220,7 +219,7 @@ describe('tidy safety check', () => {
 	});
 });
 
-import { diffLines } from '../plugins/aglc4/src/history/diff';
+import { diffLines } from '../src/history/diff';
 
 describe('line diff', () => {
 	const apply = (d: ReturnType<typeof diffLines>) => ({

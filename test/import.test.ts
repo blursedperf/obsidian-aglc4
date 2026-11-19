@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
-import { analyseDocument, DEFAULT_EXPORT, exportDocx, importDocx, applyHeadingScheme, numberHeadings } from '@legal-core/aglc';
-import { cleanTarget, levelFromStyleName } from '@legal-core/docx-engine';
-import { parseMarkdown } from '@legal-core/md-pipeline';
+import { analyseDocument } from '../src/aglc/document';
+import { DEFAULT_EXPORT, exportDocx } from '../src/export/docx';
+import { cleanTarget, importDocx, levelFromStyleName } from '../src/import/docx';
+import { applyHeadingScheme, numberHeadings } from '../src/layout/headings';
+import { parseMarkdown } from '../src/export/markdown';
 
 const NOTE = `# Native Title
 

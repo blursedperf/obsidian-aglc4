@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { EXAMPLE, GROUPS } from '../plugins/aglc4/src/settings';
-import { NOTE_PROPERTIES } from '../plugins/aglc4/src/scope';
+import { EXAMPLE, GROUPS } from '../src/settings';
+import { NOTE_PROPERTIES } from '../src/scope';
 
 const root = new URL('../', import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), 'utf8');
@@ -10,11 +10,11 @@ const docs = readdirSync(new URL('docs/', root)).filter((f) => f.endsWith('.md')
 /** Every rule identifier the checker can raise, read from its source. */
 function ruleIds(): string[] {
 	const ids = new Set<string>();
-	const grammar = read('packages/aglc/src/grammar.ts');
+	const grammar = read('src/aglc/grammar.ts');
 	for (const m of grammar.matchAll(/issue\(\w+, '([a-z0-9-]+)'/g)) ids.add(m[1]!);
 	for (const m of grammar.matchAll(/, '(case-[a-z-]+)', '/g)) ids.add(m[1]!);
 	for (const f of ['citation', 'document', 'lint']) {
-		const src = read(`packages/aglc/src/${f}.ts`);
+		const src = read(`src/aglc/${f}.ts`);
 		for (const m of src.matchAll(/rule: '([a-z0-9-]+)'/g)) ids.add(m[1]!);
 		for (const m of src.matchAll(/issue\(\w+, '([a-z0-9-]+)'/g)) ids.add(m[1]!);
 	}
@@ -37,7 +37,7 @@ describe('docs', () => {
 	});
 
 	it('document every command', () => {
-		const names = [...read('plugins/aglc4/src/main.ts').matchAll(/addCommand\(\{\s*id: '[a-z-]+',\s*name: '([^']+)'/g)].map((m) => m[1]!);
+		const names = [...read('src/main.ts').matchAll(/addCommand\(\{\s*id: '[a-z-]+',\s*name: '([^']+)'/g)].map((m) => m[1]!);
 		expect(names.length).toBeGreaterThan(15);
 		const page = read('docs/commands.md');
 		expect(names.filter((n) => !page.includes(`**${n}**`))).toEqual([]);

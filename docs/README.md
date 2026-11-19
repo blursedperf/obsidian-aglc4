@@ -21,7 +21,6 @@ New to the plugin? Start with **[Getting started](getting-started.md)**: it take
 | [Importing Word documents](import.md) | Turning a `.docx` into a note with its footnotes |
 | [Version history](version-history.md) | Restoring earlier versions, named versions, deleted notes |
 | [Choosing which notes it works in](notes.md) | Assignment notes only, folders, and a note's own style |
-| [Legal Core](legal-core.md) | Optional: sharing your citations with other legal plugins |
 | [Commands](commands.md) | Every command, and where to find it |
 | [Settings](settings.md) | Every setting |
 | [Privacy](privacy.md) | Offline, no AI, no tracking, and how that is checked |
