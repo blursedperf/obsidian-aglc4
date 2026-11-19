@@ -5,7 +5,7 @@
  *
  *   node scripts/offline-audit.mjs
  *
- * Checks src/**\/*.{ts,js,mjs}, main.js (when built) and styles.css.
+ * Checks the src folder of every package and plugin (.ts, .js, .mjs), main.js (when built) and styles.css.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -101,7 +101,11 @@ function check(path, text, rules) {
 	}
 }
 
-const codeFiles = walk(join(ROOT, "src"), [".ts", ".js", ".mjs"]);
+const codeFiles = [];
+for (const top of ["packages", "plugins"]) {
+	if (!existsSync(join(ROOT, top))) continue;
+	for (const name of readdirSync(join(ROOT, top))) walk(join(ROOT, top, name, "src"), [".ts", ".js", ".mjs"], codeFiles);
+}
 if (existsSync(join(ROOT, "main.js"))) codeFiles.push(join(ROOT, "main.js"));
 for (const path of codeFiles) {
 	check(path, stripComments(readFileSync(path, "utf8")), CODE_RULES);

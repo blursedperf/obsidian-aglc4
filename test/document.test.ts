@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { analyseDocument, applyFixes } from '../src/aglc/document';
-import { EXAMPLE_ESSAY, EXAMPLE_MISTAKES, EXAMPLE_NAME } from '../src/example';
-import { noteEnabled, noteSettings } from '../src/scope';
-import { DEFAULT_SETTINGS } from '../src/settings';
-import { DEFAULT_EXPORT, exportDocx } from '../src/export/docx';
-import { exportHtml } from '../src/export/html';
-import { footnoteKeys, remapCrossReferences, scanFootnotes, tidyFootnotes } from '../src/footnotes';
-import { atFinishedFootnote, referenceFor } from '../src/editor/context';
+import { analyseDocument, applyFixes, DEFAULT_EXPORT, exportDocx, exportHtml, tidyFootnotes } from '@legal-core/aglc';
+import { EXAMPLE_ESSAY, EXAMPLE_MISTAKES, EXAMPLE_NAME } from '../plugins/aglc4/src/example';
+import { noteEnabled, noteSettings } from '../plugins/aglc4/src/scope';
+import { DEFAULT_SETTINGS } from '../plugins/aglc4/src/settings';
+import { footnoteKeys, remapCrossReferences, scanFootnotes } from '@legal-core/md-pipeline';
+import { atFinishedFootnote, referenceFor } from '../plugins/aglc4/src/editor/context';
 
 const rules = (t: string) => analyseDocument(t).issues.map((i) => i.rule);
 

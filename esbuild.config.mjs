@@ -51,7 +51,7 @@ const context = await esbuild.context({
 	banner: {
 		js: banner,
 	},
-	entryPoints: ['src/main.ts'],
+	entryPoints: ['plugins/aglc4/src/main.ts'],
 	bundle: true,
 	plugins: [removeBase64],
 	external: [

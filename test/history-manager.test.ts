@@ -4,7 +4,7 @@ import * as obsidian from './obsidian-stub';
 
 // The manager uses window timers, as in Obsidian.
 (globalThis as { window?: unknown }).window ??= globalThis;
-import { HistoryManager, type HistorySettings } from '../src/history/manager';
+import { HistoryManager, type HistorySettings } from '../plugins/aglc4/src/history/manager';
 
 type Handler = (...args: unknown[]) => void;
 

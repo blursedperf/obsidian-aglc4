@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { DEFAULT_SETTINGS } from '../src/settings';
+import { DEFAULT_SETTINGS } from '../plugins/aglc4/src/settings';
 
 const SNAPSHOT = new URL('golden/settings-defaults.json', import.meta.url);
 

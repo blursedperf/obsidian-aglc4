@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyseFootnote, suggestNext, nextRequired } from '../src/aglc/citation';
+import { analyseFootnote, suggestNext, nextRequired } from '@legal-core/aglc';
 
 function kinds(text: string) {
 	return analyseFootnote(text).segments.map((s) => s.kind);

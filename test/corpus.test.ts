@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyseFootnote } from '../src/aglc/citation';
-import { applyFixes } from '../src/aglc/document';
-import { lintFootnote } from '../src/aglc/lint';
+import { analyseFootnote, applyFixes, lintFootnote } from '@legal-core/aglc';
 import { INVALID, VALID } from './corpus';
 
 const issuesOf = (t: string) => [...analyseFootnote(t).issues, ...lintFootnote(t)];

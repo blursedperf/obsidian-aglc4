@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EditorState } from '@codemirror/state';
-import { fixChange } from '../src/editor/extension';
+import { fixChange } from '../plugins/aglc4/src/editor/extension';
 
 describe('Fix button', () => {
 	it('applies its fix to the text it was shown for', () => {

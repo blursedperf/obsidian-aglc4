@@ -1,0 +1,19 @@
+{
+	"name": "@legal-core/aglc4-plugin",
+	"version": "0.0.0",
+	"private": true,
+	"description": "The AGLC4 Citations Obsidian plugin (id aglc-citations). Its release files (manifest.json, versions.json, styles.css and the built main.js) are at the repository root.",
+	"type": "module",
+	"dependencies": {
+		"@legal-core/ldm": "*",
+		"@legal-core/md-pipeline": "*",
+		"@legal-core/docx-engine": "*",
+		"@legal-core/aglc": "*",
+		"fflate": "^0.8.3"
+	},
+	"peerDependencies": {
+		"@codemirror/state": "^6.0.0",
+		"@codemirror/view": "^6.0.0",
+		"obsidian": "*"
+	}
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS } from '../src/settings';
-import { noteEnabled, noteSettings, parseFolders } from '../src/scope';
+import { DEFAULT_SETTINGS } from '../plugins/aglc4/src/settings';
+import { noteEnabled, noteSettings, parseFolders } from '../plugins/aglc4/src/scope';
 
 const s = (scope: 'all' | 'marked' | 'marked-folders', scopeFolders = '') => ({ scope, scopeFolders });
 

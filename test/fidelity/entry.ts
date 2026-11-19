@@ -3,8 +3,8 @@
  * each page, how many body lines it holds, which footnotes start on it and how many footnote lines it
  * holds. Obsidian adds DOM helpers to HTMLElement; the few the preview uses are provided here.
  */
-import { DEFAULT_EXPORT } from '../../src/export/docx';
-import { layoutNote, renderPages } from '../../src/layout/preview';
+import { DEFAULT_EXPORT } from '@legal-core/aglc';
+import { layoutNote, renderPages } from '../../plugins/aglc4/src/preview/preview';
 
 type Attrs = { cls?: string; text?: string };
 const proto = HTMLElement.prototype as unknown as Record<string, unknown>;

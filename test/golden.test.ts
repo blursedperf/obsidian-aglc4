@@ -11,8 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { strFromU8, unzipSync } from 'fflate';
-import { DEFAULT_EXPORT, type ExportOptions, exportDocx } from '../src/export/docx';
-import { exportHtml } from '../src/export/html';
+import { DEFAULT_EXPORT, type ExportOptions, exportDocx, exportHtml } from '@legal-core/aglc';
 
 const FIXTURES = new URL('fixtures/', import.meta.url);
 const GOLDEN = new URL('golden/', import.meta.url);
