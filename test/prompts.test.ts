@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { findSet, guideAt, headingKey, outline, parseCustomSet, promptAt, sentencesBefore, setToNote } from '../src/prompts/engine';
-import { BUILT_IN_SETS, CRITICAL, DISCUSS, HIRAC, ILAC, IRAC, MIRAT } from '../src/prompts/sets';
+import { BUILT_IN_SETS, CRITICAL, DISCUSS, ESSAY_ALTERNATIVES, HIRAC, ILAC, IRAC, MIRAT, PROBLEM_ALTERNATIVES } from '../src/prompts/sets';
 
 /** The aim of the guide at the `|` in `doc`. */
 function at(doc: string, set = IRAC): string | null {
@@ -195,6 +195,14 @@ describe('paragraph prompts: custom sets', () => {
 		expect(findSet('my ipac', [set])).toBe(set);
 	});
 
+	it('reads its own alternatives, or uses the usual ones for its kind', () => {
+		const own = parseCustomSet('a.md', { 'aglc-prompt-set': 'A' }, '## Body\n- Para\n\n## Alternatives\n\nSome notes.\n\n- Example: a case.\n- Policy: why.')!;
+		expect(own.alternatives).toEqual(['Example: a case.', 'Policy: why.']);
+		expect(own.body).toEqual([{ aim: 'Para', sentences: [] }]);
+		expect(parseCustomSet('a.md', { 'aglc-prompt-set': 'B', 'aglc-prompt-kind': 'problem' }, '## Body\n- Para')!.alternatives).toBe(PROBLEM_ALTERNATIVES);
+		expect(parseCustomSet('a.md', { 'aglc-prompt-set': 'C' }, '## Body\n- Para')!.alternatives).toBe(ESSAY_ALTERNATIVES);
+	});
+
 	it('reads a set from 1.11.0, with no sentences', () => {
 		const set = parseCustomSet('a.md', { 'aglc-prompt-set': 'Old' }, '## Introduction\n- State your thesis.\n- Outline the argument.')!;
 		expect(set.sections[0]!.prompts).toEqual([{ aim: 'State your thesis.', sentences: [] }, { aim: 'Outline the argument.', sentences: [] }]);
@@ -213,6 +221,7 @@ describe('paragraph prompts: custom sets', () => {
 			expect(back.kind).toBe(set.kind);
 			expect(back.body).toEqual(set.body);
 			expect(back.issueHeading).toEqual(set.issueHeading);
+			expect(back.alternatives).toEqual(set.alternatives);
 			expect(back.sections.map((s) => [s.name, s.prompts, !!s.perIssue, !!s.optional])).toEqual(set.sections.map((s) => [s.name, s.prompts, !!s.perIssue, !!s.optional]));
 			for (const s of set.sections) for (const a of s.aliases) expect(back.sections.find((b) => b.name === s.name)!.aliases).toContain(a);
 		}

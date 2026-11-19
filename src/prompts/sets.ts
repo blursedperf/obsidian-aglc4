@@ -52,6 +52,8 @@ export interface PromptSet {
 	body: Prompt[];
 	/** Guide for an issue's own heading in a problem answer, if any (HIRAC). */
 	issueHeading?: Prompt;
+	/** Other sentences ("Role: what it says") to cycle through when the next sentence needs something else. */
+	alternatives: string[];
 	/** Where the advice comes from. */
 	sources: string[];
 	/** True for a set defined in a note. */
@@ -67,6 +69,36 @@ const MONASH = 'Monash University Library, "Legal problem solving"';
 const ANU = 'ANU Academic Skills, "Writing in Law"';
 const UTS = 'UTS Faculty of Law, "Guide to Written Communication" (2023)';
 const LATROBE = 'Tudor and Falconer, "A Guide to Writing for Law School"';
+
+/** Other moves a sentence of a problem answer can make, when the guide's next sentence is not the one needed. */
+export const PROBLEM_ALTERNATIVES = [
+	'Second authority: another case or provision to the same effect ("This is consistent with …").',
+	'Qualification: a limit or exception that applies here ("However, …").',
+	'Statutory interpretation: the provision\'s text, context and purpose, and what they mean for these facts.',
+	'Distinguish: why a case that seems to apply does not ("[Case] can be distinguished because …").',
+	'Alternative argument: an argument in the alternative ("Alternatively, even if …, …").',
+	'Missing fact: a fact the problem does not give, and how the answer turns on it ("If X knew …, then …").',
+	'Evidence: what would prove the fact, and who bears the burden.',
+	'Policy: the purpose of the rule, and whether this result serves it.',
+	'Transition: link to the next element or issue ("Having established …, the next question is …").',
+];
+
+/** Other moves a sentence of an essay can make. */
+export const ESSAY_ALTERNATIVES = [
+	'Example: a case or situation that illustrates the point ("For instance, in …").',
+	'Second authority: another source to the same effect, or a commentator who agrees.',
+	'Contrast: an authority or jurisdiction that takes a different approach ("By contrast, …").',
+	'Concession: what is right about the opposing view ("Admittedly, …").',
+	'Qualification: the limits of your point ("This is not to say that …").',
+	'Definition: what a key term means here.',
+	'Policy: the purpose, effect or fairness of the law.',
+	'Reform: what should change, and who has proposed it.',
+	'Transition: lead into the next point ("This leads to …").',
+];
+
+export function defaultAlternatives(kind: PromptKind): string[] {
+	return kind === 'problem' ? PROBLEM_ALTERNATIVES : ESSAY_ALTERNATIVES;
+}
 
 // Problem questions
 
@@ -181,6 +213,7 @@ export const IRAC: PromptSet = {
 	description: 'Issue, Rule, Application, Conclusion, for each issue.',
 	sections: [overview, issue, rule('Rule'), application, conclusion, overall],
 	body: problemBody('Rule'),
+	alternatives: PROBLEM_ALTERNATIVES,
 	sources: [SCU, MONASH, UTS],
 };
 
@@ -256,6 +289,7 @@ export const MIRAT: PromptSet = {
 		overall,
 	],
 	body: [issueQuestion, rulePrompts('Rules')[0]!, miratFor, miratAgainst, tentative],
+	alternatives: PROBLEM_ALTERNATIVES,
 	sources: [MONASH],
 };
 
@@ -319,6 +353,7 @@ export const CRITICAL: PromptSet = {
 			'Further support (optional): a second authority, an example, or the opposing reading and why it fails.',
 			'Link: tie the point back to your thesis, and lead into the next paragraph.'),
 	],
+	alternatives: ESSAY_ALTERNATIVES,
 	sources: [UTS, ANU, LATROBE],
 };
 
@@ -364,6 +399,7 @@ export const DISCUSS: PromptSet = {
 			'Other view: the strongest response from the other side.',
 			'Link: tie it back to the question.'),
 	],
+	alternatives: ESSAY_ALTERNATIVES,
 	sources: [UTS, LATROBE, ANU],
 };
 

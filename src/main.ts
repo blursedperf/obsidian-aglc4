@@ -7,7 +7,7 @@ import type { Issue } from './aglc/types';
 import { footnoteKeys, remapCrossReferences, scanFootnotes, tidyFootnotes } from './footnotes';
 import { footnoteAt, minimalChange, referenceFor } from './editor/context';
 import { type AglcHost, buildExtension, refreshEffect } from './editor/extension';
-import { guideExtension } from './editor/guide';
+import { type GuideAction, changeGuide, guideExtension, guideShown } from './editor/guide';
 import { NextElementModal, NextElementSuggest, footnoteTextBeforeCursor } from './editor/suggest';
 import { type ExportOptions, exportDocx } from './export/docx';
 import { exportHtml } from './export/html';
@@ -314,6 +314,21 @@ export default class Aglc4Plugin extends Plugin {
 				return true;
 			},
 		});
+		const guideCommand = (id: string, name: string, action: GuideAction) => this.addCommand({
+			id,
+			name,
+			editorCheckCallback: (checking, editor) => {
+				const cm = cmOf(editor);
+				if (!cm || !guideShown(cm)) return false;
+				if (!checking) changeGuide(cm, action);
+				return true;
+			},
+		});
+		guideCommand('guide-next-sentence', 'Paragraph guide: next sentence', { type: 'sentence', step: 1 });
+		guideCommand('guide-previous-sentence', 'Paragraph guide: previous sentence', { type: 'sentence', step: -1 });
+		guideCommand('guide-other-sentence', 'Paragraph guide: another kind of sentence', { type: 'alternative', step: 1 });
+		guideCommand('guide-next-paragraph', 'Paragraph guide: next paragraph guide', { type: 'guide', step: 1 });
+		guideCommand('guide-previous-paragraph', 'Paragraph guide: previous paragraph guide', { type: 'guide', step: -1 });
 		this.addCommand({
 			id: 'new-legal-essay',
 			name: 'New legal essay or problem answer',

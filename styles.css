@@ -50,9 +50,60 @@
 	cursor: default;
 }
 
+.aglc-guide-head {
+	display: flex;
+	align-items: baseline;
+	gap: 0.6em;
+}
+
 .aglc-guide-aim {
 	color: var(--text-muted);
 	font-weight: var(--font-semibold);
+}
+
+.aglc-guide-nav {
+	margin-left: auto;
+	white-space: nowrap;
+}
+
+.aglc-guide-btn {
+	display: inline-block;
+	padding: 0 0.35em;
+	border-radius: var(--radius-s);
+	color: var(--text-faint);
+	cursor: pointer;
+}
+
+.aglc-guide-btn:hover {
+	color: var(--text-accent);
+	background-color: var(--background-modifier-hover);
+}
+
+.aglc-guide-count {
+	font-size: 0.9em;
+	color: var(--text-faint);
+	margin: 0 0.2em;
+}
+
+.aglc-guide-other {
+	margin-left: 0.3em;
+}
+
+.aglc-guide-sentences li:not(.is-current) .aglc-guide-sentence {
+	cursor: pointer;
+}
+
+.aglc-guide-sentences li:not(.is-current) .aglc-guide-sentence:hover {
+	color: var(--text-muted);
+}
+
+.aglc-guide .is-alternative .aglc-guide-sentence {
+	color: var(--text-accent);
+}
+
+.aglc-guide-more {
+	margin: 0.2em 0 0 1.6em;
+	color: var(--text-muted);
 }
 
 .aglc-guide-sentences {

@@ -37,7 +37,11 @@ describe('docs', () => {
 	});
 
 	it('document every command', () => {
-		const names = [...read('src/main.ts').matchAll(/addCommand\(\{\s*id: '[a-z-]+',\s*name: '([^']+)'/g)].map((m) => m[1]!);
+		const main = read('src/main.ts');
+		const names = [
+			...[...main.matchAll(/addCommand\(\{\s*id: '[a-z-]+',\s*name: '([^']+)'/g)].map((m) => m[1]!),
+			...[...main.matchAll(/guideCommand\('[a-z-]+', '([^']+)'/g)].map((m) => m[1]!),
+		];
 		expect(names.length).toBeGreaterThan(15);
 		const page = read('docs/commands.md');
 		expect(names.filter((n) => !page.includes(`**${n}**`))).toEqual([]);

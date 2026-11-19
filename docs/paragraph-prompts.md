@@ -16,6 +16,46 @@ When you finish a sentence (a full stop, question mark or exclamation mark, then
 
 The guides are about **structure**, never content: they suggest what each sentence does, and sometimes how it could start ("The issue is whether …", "As in …", "Unlike …"), but never what to argue. They are drawn by the editor, not written into the note, so they can never end up in your submission, an export, the page preview or the word count. They are fixed text, chosen by where you are in the note: no AI, nothing sent anywhere ([privacy](privacy.md)).
 
+## When the paragraph needs something else
+
+The guide expects the usual order, but a paragraph often needs something else: a step skipped or repeated, a sentence the guide does not list, or a different kind of paragraph altogether. You can change the guide for the paragraph you are writing:
+
+- **Another sentence of the guide:** click (or tap) a sentence in the guide to make it the one you are writing. The guide keeps counting from there: jump to *Reasoning*, finish that sentence, and *Mini-conclusion* is next.
+- **Another kind of sentence:** click **⟳** on the highlighted sentence to show another kind of sentence in its place, and again for the next. Problem answers offer:
+  - a second authority;
+  - a qualification;
+  - statutory interpretation (text, context and purpose);
+  - distinguishing a case;
+  - an alternative argument;
+  - a missing fact;
+  - evidence and burden;
+  - policy;
+  - a transition.
+
+  Essays offer:
+  - an example;
+  - a second authority;
+  - a contrast;
+  - a concession;
+  - a qualification;
+  - a definition;
+  - policy;
+  - reform;
+  - a transition.
+
+  After the last, it comes back to the guide's own sentence. Once you finish that sentence, the guide goes back to its structure. When a paragraph has more sentences than the guide, **⟳** offers these for the next one.
+- **Another paragraph guide:** click **‹** or **›** next to the guide's title (with "2 of 3") to see the section's other paragraph guides. For example, the guide expects *Application: the next element*, but you are writing the other side's argument: press **›** for *Application: the other side*.
+
+These choices last while you write that paragraph, and are forgotten when you move to another. They are never saved, and the prompt sets are not changed.
+
+Each has a command, so you can give them hotkeys in **Settings → Hotkeys**:
+
+- **Paragraph guide: next sentence** and **Paragraph guide: previous sentence**;
+- **Paragraph guide: another kind of sentence**;
+- **Paragraph guide: next paragraph guide** and **Paragraph guide: previous paragraph guide**.
+
+For example, Alt+↓ and Alt+↑ for the sentences, Alt+→ for another kind of sentence, and Alt+Shift+→ and Alt+Shift+← for the paragraph guides.
+
 To see less, set **Guide shows** to **The current sentence** in [settings](settings.md): the guide then shows the paragraph's aim and only the sentence you are writing.
 
 ## Turning them on for a note
@@ -91,6 +131,7 @@ To follow your subject's or lecturer's structure, make your own set:
    - **(each issue)** marks a section that belongs to each issue of a problem answer.
    - **(optional)** leaves a section out of a new outline.
    - **Body** holds the guides for paragraphs under any other heading, and **Issue heading** the guide for an issue's heading (as in HIRAC).
+   - **Alternatives** lists the other kinds of sentence that **⟳** cycles through, one list item each. Without it, a set uses the usual ones for an essay or a problem answer.
    - `aglc-prompt-kind` is `essay` or `problem`.
    - Sets made with 1.11.0 still work: their list items become paragraph guides without sentences.
 3. Use it: run **Choose paragraph prompts for this note** or **New legal essay or problem answer**: your set is listed with the built-in ones. Its property value is its name, for example `aglc-prompts: "Contracts IPAC"`.

@@ -36,6 +36,11 @@ Run commands from the command palette (Ctrl/Cmd+P; type "AGLC4" to list them). G
 | **Choose paragraph prompts for this note** | Turns on prompts for a kind of essay or problem answer (IRAC, ILAC, HIRAC, MIRAT, critical analysis, "discuss", or your own), or off ([paragraph prompts](paragraph-prompts.md)) |
 | **New legal essay or problem answer** | Creates a note with the outline of the kind you choose, and its prompts on |
 | **Copy a prompt set to edit as your own** | Copies a set of prompts to a note, where you can edit it as your own set |
+| **Paragraph guide: next sentence** | Highlights the next sentence of the guide, for a paragraph that skips one ([changing the guide](paragraph-prompts.md#when-the-paragraph-needs-something-else)) |
+| **Paragraph guide: previous sentence** | Highlights the sentence before |
+| **Paragraph guide: another kind of sentence** | Shows another kind of sentence in place of the highlighted one, such as an example, a qualification or a policy argument; run it again for the next |
+| **Paragraph guide: next paragraph guide** | Shows the next of the section's paragraph guides, for a paragraph of another kind than the one expected |
+| **Paragraph guide: previous paragraph guide** | Shows the one before |
 
 ## Version history
 

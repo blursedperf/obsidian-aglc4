@@ -2,7 +2,7 @@
  * Which prompt to show where, new essays from a prompt set, and prompt sets defined in notes.
  */
 import { excludedRanges, scanFootnotes } from '../footnotes';
-import { BUILT_IN_SETS, type Prompt, type PromptKind, type PromptSection, type PromptSet } from './sets';
+import { BUILT_IN_SETS, type Prompt, type PromptKind, type PromptSection, type PromptSet, defaultAlternatives } from './sets';
 
 /** The note property that chooses a note's prompt set: a built-in id or a custom set's name. */
 export const PROMPTS_PROPERTY = 'aglc-prompts';
@@ -43,6 +43,9 @@ export interface Guide {
 	prompt: Prompt;
 	/** The sentence of the paragraph the cursor is in, from 0. */
 	sentence: number;
+	/** The guides this paragraph could have instead (its section's, in order), and which one `prompt` is. */
+	options: Prompt[];
+	index: number;
 }
 
 /** A line that is not a paragraph of prose: a list item, quotation, table or indented code. */
@@ -84,7 +87,7 @@ export function guideAt(text: string, cursor: number, set: PromptSet): Guide | n
 		// HIRAC: the heading of an issue (any heading that is not a section or the title).
 		if (set.kind !== 'problem' || !set.issueHeading || title?.at === lineStart) return null;
 		if (h[2] && sectionFor(set, h[2])) return null;
-		return { from: lineStart, prompt: set.issueHeading, sentence: 0 };
+		return { from: lineStart, prompt: set.issueHeading, sentence: 0, options: [set.issueHeading], index: 0 };
 	}
 	if (NOT_PROSE.test(line)) return null;
 
@@ -117,19 +120,22 @@ export function guideAt(text: string, cursor: number, set: PromptSet): Guide | n
 		inParagraph = true;
 	}
 
-	const pick = (prompts: Prompt[], n: number) => (prompts.length > 0 ? prompts[Math.min(n, prompts.length - 1)]! : null);
-	let prompt: Prompt | null;
+	let options: Prompt[];
+	let index: number;
 	if (heading) {
 		// A heading that is no section: a part of an essay, or one issue of a problem answer.
 		const section = sectionFor(set, heading.text);
-		prompt = pick(section ? section.prompts : set.body, paragraphs);
+		options = section ? section.prompts : set.body;
+		index = Math.min(paragraphs, options.length - 1);
 	} else {
 		// No heading yet: the opening, then the body.
 		const opening = set.sections.find((s) => (set.kind === 'essay' ? s.aliases.includes('introduction') : s.optional || s.aliases.includes('material facts')));
-		prompt = opening && paragraphs < opening.prompts.length ? opening.prompts[paragraphs]! : pick(set.body, opening ? paragraphs - opening.prompts.length : paragraphs);
+		const first = opening?.prompts ?? [];
+		options = [...first, ...set.body];
+		index = paragraphs < first.length ? paragraphs : first.length + Math.min(paragraphs - first.length, set.body.length - 1);
 	}
-	if (!prompt) return null;
-	return { from, prompt, sentence: sentencesBefore(text.slice(from, cursor)) };
+	if (options.length === 0 || index < 0) return null;
+	return { from, prompt: options[index]!, sentence: sentencesBefore(text.slice(from, cursor)), options, index };
 }
 
 /** The aim of the guide at `cursor`, or null. */
@@ -184,6 +190,7 @@ export function parseCustomSet(path: string, frontmatter: Record<string, unknown
 	const sections: PromptSection[] = [];
 	const body: Prompt[] = [];
 	const issueHeading: Prompt[] = [];
+	const alternatives: Prompt[] = [];
 	let current: Prompt[] | null = null;
 	for (const line of text.replace(/^---\n[\s\S]*?\n---\n/, '').split('\n')) {
 		const h = /^##[ \t]+(.+?)\s*$/.exec(line);
@@ -197,6 +204,7 @@ export function parseCustomSet(path: string, frontmatter: Record<string, unknown
 			if (!first) { current = null; continue; }
 			if (first === 'body' || first === 'paragraphs') { current = body; continue; }
 			if (first === 'issue heading') { current = issueHeading; continue; }
+			if (first === 'alternatives' || first === 'other sentences') { current = alternatives; continue; }
 			const section: PromptSection = { name: names[0]!, aliases: names.map((n) => headingKey(n)), prompts: [], ...(perIssue ? { perIssue } : {}), ...(optional ? { optional } : {}) };
 			sections.push(section);
 			current = section.prompts;
@@ -217,6 +225,7 @@ export function parseCustomSet(path: string, frontmatter: Record<string, unknown
 		sections,
 		body,
 		...(issueHeading[0] ? { issueHeading: issueHeading[0] } : {}),
+		alternatives: alternatives.length > 0 ? alternatives.map((a) => a.aim) : defaultAlternatives(kind),
 		sources: [path],
 		custom: true,
 		path,
@@ -227,7 +236,7 @@ export function parseCustomSet(path: string, frontmatter: Record<string, unknown
 export function setToNote(set: PromptSet, name: string): string {
 	const lines = ['---', `${CUSTOM_SET_PROPERTY}: ${JSON.stringify(name)}`, `${CUSTOM_KIND_PROPERTY}: ${set.kind}`, '---', '',
 		`Prompts for "${name}", copied from "${set.name}". Edit the headings and list items freely.`,
-		'Each "##" heading is a section; alternative headings for it follow "|". "(each issue)" marks a section that belongs to each issue of a problem answer; "(optional)" leaves a section out of a new outline. Each list item is the guide for one paragraph (the first, second, … in the section; the last repeats), and the items indented under it are its sentences, in order. "Body" holds the guides for paragraphs under any other heading.',
+		'Each "##" heading is a section; alternative headings for it follow "|". "(each issue)" marks a section that belongs to each issue of a problem answer; "(optional)" leaves a section out of a new outline. Each list item is the guide for one paragraph (the first, second, … in the section; the last repeats), and the items indented under it are its sentences, in order. "Body" holds the guides for paragraphs under any other heading; "Alternatives", the other sentences to cycle through.',
 		`To use it, set the property ${PROMPTS_PROPERTY}: "${name}" on a note, or run "New legal essay or problem answer".`, ''];
 	const items = (prompts: Prompt[]) => prompts.flatMap((p) => [`- ${p.aim}`, ...p.sentences.map((x) => `\t- ${x}`)]);
 	for (const s of set.sections) {
@@ -236,6 +245,7 @@ export function setToNote(set: PromptSet, name: string): string {
 	}
 	lines.push('## Body', '', ...items(set.body), '');
 	if (set.issueHeading) lines.push('## Issue heading', '', ...items([set.issueHeading]), '');
+	lines.push('## Alternatives', '', 'Other sentences to cycle through when the next sentence needs to do something the guide does not list.', '', ...set.alternatives.map((a) => `- ${a}`), '');
 	if (set.sources.length > 0) lines.push(`Based on: ${set.sources.join('; ')}.`, '');
 	return lines.join('\n');
 }
