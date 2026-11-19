@@ -12,3 +12,4 @@ export * from './typography';
 export * from './styles';
 export * from './export';
 export * from './import';
+export * from './authorities';
