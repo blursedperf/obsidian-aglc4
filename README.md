@@ -9,6 +9,8 @@ Write footnoted legal work in Obsidian to the *Australian Guide to Legal Citatio
 - **underlines incorrect or incomplete citations** as you write, explains the AGLC4 rule on hover and offers a one-click fix;
 - **exports to Word with real footnotes** at the bottom of each page, keeping italics, quotation marks and `<URLs>` exactly as AGLC4 requires. It also exports to HTML.
 
+**Try it straight away:** run **Create example essay** (command palette, or the button at the top of the plugin's settings). It adds a short, correctly cited essay to your vault, with a tour of what to try in a comment at the top and a final part of citations with mistakes to fix. Nothing is replaced: each run creates a new note.
+
 ## Private, offline and AI-free
 
 Your writing never leaves your computer.
@@ -242,6 +244,6 @@ npm run lint
 
 `node scripts/word-fidelity.mjs` compares the page preview with Word, page by page, for each note in `test/fidelity/` that has a PDF saved from Word beside it. It needs `chromium` and `pdftotext`. To add a case, export the note to Word with the plugin, save it as PDF from Word as `<name>.word.pdf`, and put the note beside it as `<name>.md`.
 
-The plugin makes no network requests; `npm test` runs `scripts/offline-audit.mjs` over the source and the bundle to check this. `sample/` has a correctly cited essay and a note of common mistakes to try it on.
+The plugin makes no network requests; `npm test` runs `scripts/offline-audit.mjs` over the source and the bundle to check this. `sample/AGLC4 example essay.md` is the example essay that **Create example essay** adds; the tests check that it raises no problems apart from the mistakes it is meant to show, and none once they are fixed.
 
 To try it in a vault, copy `main.js`, `manifest.json` and `styles.css` to `<vault>/.obsidian/plugins/aglc-citations/` and enable **AGLC4 Citations** in Community plugins.

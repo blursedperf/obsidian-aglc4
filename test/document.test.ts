@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { analyseDocument, applyFixes } from '../src/aglc/document';
+import { EXAMPLE_ESSAY, EXAMPLE_MISTAKES, EXAMPLE_NAME } from '../src/example';
+import { noteEnabled, noteSettings } from '../src/scope';
+import { DEFAULT_SETTINGS } from '../src/settings';
+import { DEFAULT_EXPORT, exportDocx } from '../src/export/docx';
+import { exportHtml } from '../src/export/html';
 import { footnoteKeys, remapCrossReferences, scanFootnotes, tidyFootnotes } from '../src/footnotes';
 import { atFinishedFootnote, referenceFor } from '../src/editor/context';
 
@@ -90,26 +95,64 @@ describe('footnote tidying', () => {
 	});
 });
 
-describe('sample notes', () => {
-	const read = (name: string) => readFileSync(new URL(`../sample/${name}`, import.meta.url), 'utf8');
+describe('example essay', () => {
+	const issues = analyseDocument(EXAMPLE_ESSAY).issues;
+	const practice = EXAMPLE_ESSAY.indexOf('[^14]:');
+	const footnoteAt = (pos: number) => /\[\^(\d+)\]:/.exec(EXAMPLE_ESSAY.slice(EXAMPLE_ESSAY.lastIndexOf('\n[^', pos) + 1))?.[1];
 
-	it('a correctly cited essay has no problems', () => {
-		expect(analyseDocument(read('Native Title Essay.md')).issues).toEqual([]);
+	it('is the sample in the repository', () => {
+		expect(readFileSync(new URL('../sample/AGLC4 example essay.md', import.meta.url), 'utf8')).toBe(EXAMPLE_ESSAY);
 	});
 
-	it('fixing all problems produces AGLC4 citations', () => {
-		let t = read('Bad Citations.md');
+	it('raises no problems, suggestions included, outside the practice part', () => {
+		expect(issues.filter((i) => i.from < practice)).toEqual([]);
+	});
+
+	it('shows each mistake in the practice part', () => {
+		for (const [label, rule] of Object.entries(EXAMPLE_MISTAKES)) {
+			expect([label, issues.some((i) => i.rule === rule && footnoteAt(i.from) === label)]).toEqual([label, true]);
+		}
+		// Every practice footnote has at least one problem.
+		for (let n = 14; n <= 19; n++) expect(issues.some((i) => footnoteAt(i.from) === String(n))).toBe(true);
+	});
+
+	it('is AGLC4-correct once every problem is fixed', () => {
+		let t = EXAMPLE_ESSAY;
 		for (let p = 0; p < 4; p++) {
 			const r = applyFixes(t, analyseDocument(t, { showInfo: false }).issues);
 			if (!r.applied) break;
 			t = r.text;
 		}
-		expect(t).toContain('[^1]: *Mabo v Queensland [No 2]* (1992) 175 CLR 1, 30.');
-		expect(t).toContain('[^2]: Ibid 31.');
-		expect(t).toContain('[^3]: *Native Title Act 1993* (Cth) s 223.');
-		expect(t).toContain('[^5]: *Love v Commonwealth* [2020] HCA 3, [81].');
-		expect(t).toContain('(Web Page, 1 May 2020) <https://example.org>.');
-		expect(analyseDocument(t).issues.filter((i) => i.severity !== 'info').map((i) => i.rule)).toEqual(['not-aglc']);
+		expect(analyseDocument(t).issues).toEqual([]);
+		expect(t).toContain('[^14]: *Cubillo v Commonwealth [No 2]* (2000) 103 FCR 1, 45.');
+		expect(t).toContain('[^15]: *Racial Discrimination Act 1975* (Cth) s 10.');
+		expect(t).toContain('[^16]: *Members of the Yorta Yorta Aboriginal Community v Victoria* (2002) 214 CLR 422.');
+		expect(t).toContain('[^17]: Richard H Bartlett, *Native Title in Australia* (LexisNexis Butterworths, 3rd ed, 2015).');
+		expect(t).toContain('[^18]: Ibid 30.');
+		expect(t).toContain('[^19]: *Northern Territory v Griffiths* [2019] HCA 7.');
+	});
+
+	it('is in the plugin\'s scope and style through its properties', () => {
+		const fm = { aglc: true, 'aglc-headings': 'aglc', 'aglc-bibliography': true };
+		expect(EXAMPLE_ESSAY.startsWith('---\naglc: true\naglc-headings: aglc\naglc-bibliography: true\n---\n')).toBe(true);
+		expect(noteEnabled({ scope: 'marked', scopeFolders: '' }, `${EXAMPLE_NAME}.md`, fm)).toBe(true);
+		const s = noteSettings(DEFAULT_SETTINGS, fm);
+		expect([s.headingScheme, s.bibliography]).toEqual(['aglc', true]);
+	});
+
+	it('exports with AGLC4 headings, a bibliography and no tour', async () => {
+		const s = noteSettings(DEFAULT_SETTINGS, { 'aglc-headings': 'aglc', 'aglc-bibliography': true });
+		const opts = { ...DEFAULT_EXPORT, headingScheme: s.headingScheme, bibliography: s.bibliography };
+		const { html, footnotes } = exportHtml(EXAMPLE_ESSAY, opts);
+		expect(footnotes).toBe(19);
+		expect(html).not.toContain('TRY THE PLUGIN');
+		expect(html).toContain('<span class="hnum">I</span>&nbsp;Introduction');
+		expect(html).toContain('<span class="hnum">A</span>&nbsp;Recognition');
+		expect(html).toContain('>Bibliography<');
+		expect(html).toContain('Strelein, Lisa, <em>Compromised Jurisprudence');
+		const r = await exportDocx(EXAMPLE_ESSAY, opts);
+		expect(r.footnotes).toBe(19);
+		expect(r.warnings).toEqual([]);
 	});
 });
 

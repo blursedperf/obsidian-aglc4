@@ -14,6 +14,7 @@ import { PAGE_PREVIEW_VIEW, PagePreviewView } from './layout/view';
 import { importDocx } from './import/docx';
 import { HistoryManager } from './history/manager';
 import { ON_PROPERTY, noteEnabled, noteSettings } from './scope';
+import { EXAMPLE_ESSAY, EXAMPLE_NAME } from './example';
 import { HISTORY_VIEW, HistoryView, PromptModal, formatDay, formatTime } from './history/view';
 import type { Entry } from './history/store';
 import { type Aglc4Settings, Aglc4SettingTab, DEFAULT_SETTINGS } from './settings';
@@ -283,6 +284,11 @@ export default class Aglc4Plugin extends Plugin {
 				const left = analyseDocument(current, { disabled: new Set(this.settings.disabledRules), showInfo: false }).issues.length;
 				new Notice(`Applied ${total} ${total === 1 ? 'fix' : 'fixes'}.${left > 0 ? ` ${left} ${left === 1 ? 'problem needs' : 'problems need'} your attention.` : ''}`);
 			},
+		});
+		this.addCommand({
+			id: 'create-example-essay',
+			name: 'Create example essay',
+			callback: () => { void this.createExampleEssay(); },
 		});
 		this.addCommand({
 			id: 'turn-on-for-note',
@@ -733,6 +739,15 @@ export default class Aglc4Plugin extends Plugin {
 				})();
 			},
 		).open();
+	}
+
+	/** Create the example essay (never replacing a note) and open it. */
+	async createExampleEssay() {
+		let path = `${EXAMPLE_NAME}.md`;
+		for (let n = 2; this.app.vault.getAbstractFileByPath(path); n++) path = `${EXAMPLE_NAME} ${n}.md`;
+		const file = await this.app.vault.create(path, EXAMPLE_ESSAY);
+		await this.app.workspace.getLeaf('tab').openFile(file);
+		new Notice(`Created ${file.basename}. The comment at the top is a short tour of what to try.`, 8000);
 	}
 
 	exportOptions(file: TFile): ExportOptions {

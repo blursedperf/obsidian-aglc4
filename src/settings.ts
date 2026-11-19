@@ -75,6 +75,11 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 
 type Key = keyof Aglc4Settings;
 
+const EXAMPLE = {
+	name: 'Create example essay',
+	desc: 'Add a short, correctly cited essay to the vault, with a tour of what to try and some citations with mistakes to fix. A new note is created each time; nothing is replaced.',
+};
+
 interface Control {
 	name: string;
 	desc?: string;
@@ -168,7 +173,12 @@ export class Aglc4SettingTab extends PluginSettingTab {
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
-		return GROUPS.map((g) => ({ type: 'group', heading: g.heading, items: g.items.map((i) => ({ ...i, control: { ...i.control } })) }));
+		const start: SettingDefinitionItem = {
+			type: 'group',
+			heading: 'Getting started',
+			items: [{ name: EXAMPLE.name, desc: EXAMPLE.desc, action: () => { void this.plugin.createExampleEssay(); } }],
+		};
+		return [start, ...GROUPS.map((g): SettingDefinitionItem => ({ type: 'group', heading: g.heading, items: g.items.map((i) => ({ ...i, control: { ...i.control } })) }))];
 	}
 
 	/** Values as the controls show them: some settings are stored in another form. */
@@ -212,6 +222,9 @@ export class Aglc4SettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		new Setting(containerEl).setName('Getting started').setHeading();
+		new Setting(containerEl).setName(EXAMPLE.name).setDesc(EXAMPLE.desc)
+			.addButton((b) => b.setButtonText('Create').onClick(() => { void this.plugin.createExampleEssay(); }));
 		for (const g of GROUPS) {
 			new Setting(containerEl).setName(g.heading).setHeading();
 			for (const item of g.items) {
