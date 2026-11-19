@@ -1,4 +1,4 @@
-import { type App, type Editor, MarkdownView, type Menu, Modal, Notice, Platform, Plugin, Setting, SuggestModal, type TAbstractFile, TFile, type WorkspaceLeaf, normalizePath } from 'obsidian';
+import { type App, type Editor, type Events, MarkdownView, type Menu, Modal, Notice, Platform, Plugin, Setting, SuggestModal, type TAbstractFile, TFile, type WorkspaceLeaf, normalizePath } from 'obsidian';
 import type { EditorView } from '@codemirror/view';
 import { type DocumentAnalysis, analyseDocument, applyFixes, suggestNext, withBibliography, type Issue, tidyFootnotes, type ExportOptions, exportDocx, exportHtml, importDocx } from '@legal-core/aglc';
 import { footnoteKeys, remapCrossReferences, scanFootnotes } from '@legal-core/md-pipeline';
@@ -9,6 +9,7 @@ import { PAGE_PREVIEW_VIEW, PagePreviewView } from './preview/view';
 import { HistoryManager } from './history/manager';
 import { ON_PROPERTY, noteEnabled, noteSettings } from './scope';
 import { EXAMPLE_ESSAY, EXAMPLE_NAME } from './example';
+import { LEGAL_CORE_ID, LegalCoreLink } from './legal-core';
 import { HISTORY_VIEW, HistoryView, PromptModal, formatDay, formatTime } from './history/view';
 import type { Entry } from './history/store';
 import { type Aglc4Settings, Aglc4SettingTab, DEFAULT_SETTINGS } from './settings';
@@ -137,6 +138,7 @@ export default class Aglc4Plugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 		this.history.register(this);
+		this.startLegalCore();
 		this.registerView(HISTORY_VIEW, (leaf) => new HistoryView(leaf, {
 			history: this.history,
 			restore: (file, text, label) => this.restoreNote(file, text, label),
@@ -960,7 +962,91 @@ export default class Aglc4Plugin extends Plugin {
 	// -----------------------------------------------------------------------------------------------------
 	// Settings
 
+	// -----------------------------------------------------------------------------------------------------
+	// Legal Core (optional)
+
+	private legalCore!: LegalCoreLink;
+	private shareTimers = new Map<string, number>();
+
+	/**
+	 * Connect to Legal Core if it is installed, now or later. Plugins load in any order, so look for it now,
+	 * when the workspace is ready, and whenever it announces itself; stop using it when it unloads.
+	 */
+	private startLegalCore() {
+		this.legalCore = new LegalCoreLink({
+			sharing: () => this.settings.legalCoreShare,
+			onConnected: () => { this.onLegalCoreConnected(); },
+			warn: (message, error) => { console.warn(`AGLC4 Citations: ${message}`, error); },
+		});
+		const find = () => {
+			const plugins = (this.app as unknown as { plugins?: { getPlugin(id: string): { api?: unknown } | null } }).plugins;
+			this.legalCore.connect(plugins?.getPlugin(LEGAL_CORE_ID)?.api);
+		};
+		find();
+		this.app.workspace.onLayoutReady(find);
+		const events = this.app.workspace as unknown as Events;
+		this.registerEvent(events.on('legal-core:ready', (api) => { this.legalCore.connect(api); }));
+		this.registerEvent(events.on('legal-core:unload', () => { this.legalCore.disconnect(); }));
+		this.registerEvent(this.app.vault.on('modify', (file) => { this.scheduleShare(file); }));
+	}
+
+	private onLegalCoreConnected() {
+		if (!this.settings.legalCoreShare) return;
+		if (this.settings.legalCoreOffered) {
+			// Catch up on notes changed while Legal Core was not running.
+			void this.shareNotes(this.settings.legalCoreLastSync, false);
+			return;
+		}
+		new ChoiceModal(
+			this.app,
+			'Share your citations with Legal Core?',
+			'Legal Core (Australia) is installed. AGLC4 Citations can share the cases, legislation and sources your notes cite with its shared store, so other legal plugins see them. Your notes are only read, never changed, and you can turn sharing off at any time in settings.',
+			[
+				{ label: 'Don\'t share', action: () => { void this.answerShareOffer(false); } },
+				{ label: 'Share my citations', cta: true, action: () => { void this.answerShareOffer(true); } },
+			],
+		).open();
+	}
+
+	private async answerShareOffer(share: boolean) {
+		this.settings.legalCoreOffered = true;
+		this.settings.legalCoreShare = share;
+		await this.saveSettings();
+		if (share) await this.shareNotes(0, true);
+	}
+
+	/** Share the citations of every note the plugin works in that changed after `since`. */
+	private async shareNotes(since: number, report: boolean) {
+		const started = Date.now();
+		const files = this.app.vault.getMarkdownFiles().filter((f) => f.stat.mtime > since && this.enabledFor(f) && !f.path.startsWith(`${this.history.root()}/`));
+		let notes = 0;
+		let authorities = 0;
+		for (const f of files) {
+			if (!this.legalCore.api) return;
+			const n = await this.legalCore.shareNote(f.path, await this.app.vault.cachedRead(f));
+			if (n > 0) notes++;
+			authorities += n;
+		}
+		this.settings.legalCoreLastSync = started;
+		await this.saveSettings();
+		if (report) new Notice(`Shared ${authorities} ${authorities === 1 ? 'authority' : 'authorities'} from ${notes} ${notes === 1 ? 'note' : 'notes'} with Legal Core.`);
+	}
+
+	/** Share a note's citations a moment after it changes (once the typing stops). */
+	private scheduleShare(file: TAbstractFile) {
+		if (!this.legalCore.api || !this.settings.legalCoreShare || !this.isMarkdown(file) || !this.enabledFor(file)) return;
+		window.clearTimeout(this.shareTimers.get(file.path));
+		this.shareTimers.set(file.path, window.setTimeout(() => {
+			this.shareTimers.delete(file.path);
+			void this.app.vault.cachedRead(file).then((text) => this.legalCore.shareNote(file.path, text)).then(() => {
+				this.settings.legalCoreLastSync = Date.now();
+			});
+		}, 3000));
+	}
+
 	onunload() {
+		this.legalCore.disconnect();
+		for (const t of this.shareTimers.values()) window.clearTimeout(t);
 		this.history.flushAll();
 	}
 

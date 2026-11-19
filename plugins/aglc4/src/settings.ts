@@ -36,6 +36,12 @@ export interface Aglc4Settings {
 	scope: Scope;
 	scopeFolders: string;
 	historyScope: 'all' | 'aglc';
+	/** Share the authorities notes cite with Legal Core, when it is installed. */
+	legalCoreShare: boolean;
+	/** Whether the one-time offer to share existing citations has been made. */
+	legalCoreOffered: boolean;
+	/** When citations were last shared with Legal Core (ms since the epoch), to catch up on later changes. */
+	legalCoreLastSync: number;
 }
 
 export const DEFAULT_SETTINGS: Aglc4Settings = {
@@ -71,6 +77,9 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	scope: 'all',
 	scopeFolders: '',
 	historyScope: 'all',
+	legalCoreShare: true,
+	legalCoreOffered: false,
+	legalCoreLastSync: 0,
 };
 
 type Key = keyof Aglc4Settings;
@@ -138,6 +147,12 @@ export const GROUPS: Group[] = [
 		items: [
 			{ name: 'Heading style', desc: 'AGLC4 numbers and formats headings I, A, 1, (a), (i): level one centred in small capitals, level two centred in italics, levels three to five in italics. Numbers are added on export, in the page preview and as a faint label in the editor; your notes keep plain headings.', control: { type: 'dropdown', key: 'headingScheme', options: { plain: 'As written', aglc: 'AGLC4 hierarchy' } } },
 			{ name: 'AGLC4 level one', desc: 'Which Markdown heading is level I. Automatic: ## when the note opens with a single # heading, which becomes the title; otherwise #.', control: { type: 'dropdown', key: 'aglcTopLevel', options: { auto: 'Automatic', h1: '# headings', h2: '## headings (# is the title)' } } },
+		],
+	},
+	{
+		heading: 'Legal Core',
+		items: [
+			{ name: 'Share citations with Legal Core', desc: 'When the Legal Core (Australia) plugin is installed, share the cases, legislation and sources your notes cite (correct, full citations only) with its shared store, so other legal plugins see them. Your notes are only read, never changed, and nothing is shared without Legal Core. AGLC4 Citations works the same without it.', control: { type: 'toggle', key: 'legalCoreShare' } },
 		],
 	},
 	{

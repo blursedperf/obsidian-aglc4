@@ -38,6 +38,10 @@ Open **Settings → AGLC4 Citations**. Many style settings can also be set for o
 - **Heading style**: as written, or the AGLC4 hierarchy I, A, 1, (a), (i) ([headings](headings.md)).
 - **AGLC4 level one**: which Markdown heading is level I (automatic, `#` or `##`).
 
+## Legal Core
+
+- **Share citations with Legal Core**: when the Legal Core (Australia) plugin is installed, share the sources your notes cite with its shared store ([Legal Core](legal-core.md)).
+
 ## Version history
 
 - **Keep version history**: save versions as you write and before the plugin changes a note ([version history](version-history.md)).
