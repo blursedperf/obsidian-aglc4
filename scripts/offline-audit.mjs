@@ -102,6 +102,8 @@ function check(path, text, rules) {
 }
 
 const codeFiles = [];
+// A repository whose plugin is at its root (as Legal Core's own repository is) has its source in src/.
+walk(join(ROOT, "src"), [".ts", ".js", ".mjs"], codeFiles);
 for (const top of ["packages", "plugins"]) {
 	if (!existsSync(join(ROOT, top))) continue;
 	for (const name of readdirSync(join(ROOT, top))) walk(join(ROOT, top, name, "src"), [".ts", ".js", ".mjs"], codeFiles);

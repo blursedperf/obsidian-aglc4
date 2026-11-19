@@ -34,6 +34,20 @@ npm run lint
 
 `npm run dev:vault` links each plugin's built files (`main.js`, `manifest.json`, `styles.css`) into `<vault>/.obsidian/plugins/<id>/`, one by one, so each plugin's settings (`data.json`) stay in the vault. With `--watch` it rebuilds on every change; reload the plugin in Obsidian to load a rebuild. `--hot` also marks the plugins for the community Hot Reload plugin, which reloads a plugin when its files change; it may not notice changes made through links, so if it does not reload, reload by hand or use `--copy --hot` with `npm run dev:vault` after each change. Use `--copy` for a vault that syncs to another device, since links do not sync. Then work through [`QA.md`](../QA.md).
 
+## Releasing Legal Core
+
+Obsidian's community directory lists one plugin per repository, read from its root, so Legal Core is released from its own repository, [blursedperf/obsidian-legal-core](https://github.com/blursedperf/obsidian-legal-core). That repository is generated from this one: change Legal Core here, then export it there and release from it:
+
+```bash
+node scripts/export-legal-core.mjs ../obsidian-legal-core
+cd ../obsidian-legal-core
+npm install && npm run build && npm test && npm run lint
+git add -A && git commit -m "…" && git push
+npm version <x.y.z> && git push --follow-tags   # a tag runs its release workflow
+```
+
+The export replaces everything there except `.git`, `node_modules`, `package-lock.json` and `versions.json`, so nothing should be edited there by hand. Bump Legal Core's version in `plugins/legal-core/manifest.json` here first.
+
 ## Tests
 
 - **Checker:** `test/corpus.ts` holds correct citations (most from the AGLC4 Guide's own examples), which must raise no problems, and mistakes (mostly the Guide's "Not:" forms), each with the rule it must raise. Every fix is checked to remove its problem without adding another.
