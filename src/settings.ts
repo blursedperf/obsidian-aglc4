@@ -7,6 +7,7 @@ export interface Aglc4Settings {
 	underline: boolean;
 	showInfo: boolean;
 	ghostHint: boolean;
+	paragraphPrompts: boolean;
 	autoSuggest: boolean;
 	statusBar: boolean;
 	tidyOnLeave: boolean;
@@ -42,6 +43,7 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	underline: true,
 	showInfo: true,
 	ghostHint: true,
+	paragraphPrompts: true,
 	autoSuggest: true,
 	statusBar: true,
 	tidyOnLeave: true,
@@ -119,6 +121,12 @@ export const GROUPS: Group[] = [
 			{ name: 'Inline hint', desc: 'Show the next required element of the citation you are typing, faintly after the cursor.', control: { type: 'toggle', key: 'ghostHint' } },
 			{ name: 'Suggest as you type', desc: 'Open the list of next elements after a space, comma, bracket or closing italics in a footnote. The "Suggest next citation element" command opens it at any time.', control: { type: 'toggle', key: 'autoSuggest' } },
 			{ name: 'Status bar', desc: 'Show the number of problems in the note and the next element of the citation at the cursor.', control: { type: 'toggle', key: 'statusBar' } },
+		],
+	},
+	{
+		heading: 'Paragraph prompts',
+		items: [
+			{ name: 'Show paragraph prompts', desc: 'In a note with paragraph prompts (run "Choose paragraph prompts for this note", or "New legal essay"), show a faint reminder at an empty paragraph of what that part of the essay or answer should do: IRAC, ILAC, HIRAC or MIRAT for problem questions, or a critical analysis or "discuss" essay. Prompts are never written into the note. Turn off to hide them in every note.', control: { type: 'toggle', key: 'paragraphPrompts' } },
 		],
 	},
 	{

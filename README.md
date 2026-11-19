@@ -10,6 +10,7 @@ Write footnoted legal work in Obsidian to the *Australian Guide to Legal Citatio
 - **exports to Word with real footnotes** at the bottom of each page, with AGLC4 headings and a bibliography, and shows the pages in a **page preview** first;
 - **imports Word documents** with their footnotes;
 - **keeps a version history** of your notes, so any earlier version, deleted note or overwritten export can be restored;
+- **prompts each paragraph** of an essay or problem answer, if you want: IRAC, ILAC, HIRAC or MIRAT for problem questions, critical analysis or "discuss" essays, or your own structure, written from Australian law schools' writing guides;
 - **can be limited to your assignments**, leaving your other notes alone, with each assignment's own style in its properties.
 
 **Try it straight away:** run **Create example essay** from the command palette. It adds a short, correctly cited essay to your vault, with a tour of what to try and some citations with mistakes to fix.
@@ -19,7 +20,7 @@ Write footnoted legal work in Obsidian to the *Australian Guide to Legal Citatio
 The full guide is in [`docs/`](docs/README.md). Start with [Getting started](docs/getting-started.md), or jump to:
 
 - [Workflows](docs/workflows.md): writing an assignment, importing a Word draft, submitting
-- [Writing footnotes](docs/writing-footnotes.md) · [Next element](docs/next-element.md) · [Checking citations](docs/checking.md) · [Rules reference](docs/rules.md)
+- [Paragraph prompts](docs/paragraph-prompts.md) · [Writing footnotes](docs/writing-footnotes.md) · [Next element](docs/next-element.md) · [Checking citations](docs/checking.md) · [Rules reference](docs/rules.md)
 - [Headings](docs/headings.md) · [Page preview](docs/page-preview.md) · [Exporting](docs/export.md) · [Bibliography](docs/bibliography.md) · [Importing](docs/import.md)
 - [Version history](docs/version-history.md) · [Choosing which notes it works in](docs/notes.md)
 - [Commands](docs/commands.md) · [Settings](docs/settings.md) · [Troubleshooting and FAQ](docs/troubleshooting.md)

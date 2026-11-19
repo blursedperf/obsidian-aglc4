@@ -15,6 +15,9 @@ import { importDocx } from './import/docx';
 import { HistoryManager } from './history/manager';
 import { ON_PROPERTY, noteEnabled, noteSettings } from './scope';
 import { EXAMPLE_ESSAY, EXAMPLE_NAME } from './example';
+import { CUSTOM_SET_PROPERTY, PROMPTS_PROPERTY, findSet, outline, parseCustomSet, setToNote } from './prompts/engine';
+import { BUILT_IN_SETS, type PromptSet } from './prompts/sets';
+import { PromptSetModal } from './prompts/ui';
 import { HISTORY_VIEW, HistoryView, PromptModal, formatDay, formatTime } from './history/view';
 import type { Entry } from './history/store';
 import { type Aglc4Settings, Aglc4SettingTab, DEFAULT_SETTINGS } from './settings';
@@ -135,6 +138,8 @@ export default class Aglc4Plugin extends Plugin {
 	settings: Aglc4Settings = DEFAULT_SETTINGS;
 	private statusEl: HTMLElement | null = null;
 	private lastFile: TFile | null = null;
+	/** Prompt sets defined in notes, by path. */
+	private customSets = new Map<string, PromptSet>();
 	private lastAnalysis: DocumentAnalysis | null = null;
 	readonly history = new HistoryManager(this.app, () => this.settings, (file) => this.settings.historyScope === 'all' || this.enabledFor(file));
 	/** True while the status bar shows that the active note is off. */
@@ -160,10 +165,12 @@ export default class Aglc4Plugin extends Plugin {
 			disableRule: (rule) => { void this.disableRule(rule); },
 			returnFromFootnote: (view, finished) => this.returnFromFootnote(view, finished),
 			vimMode: () => this.vimMode(),
+			promptSet: (path) => this.promptSetFor(path),
 		}));
 		this.registerEditorSuggest(new NextElementSuggest(this.app, () => this.settings, (file) => this.enabledFor(file)));
 		// A note's properties decide whether the plugin works in it, and its style.
-		this.registerEvent(this.app.metadataCache.on('changed', (file) => {
+		this.registerEvent(this.app.metadataCache.on('changed', (file, data, cache) => {
+			if (cache.frontmatter?.[CUSTOM_SET_PROPERTY] !== undefined || this.customSets.has(file.path)) this.readCustomSet(file, data, cache.frontmatter);
 			if (file !== this.app.workspace.getActiveFile()) return;
 			this.refreshEditors();
 			for (const leaf of this.app.workspace.getLeavesOfType(PAGE_PREVIEW_VIEW)) {
@@ -203,7 +210,17 @@ export default class Aglc4Plugin extends Plugin {
 			menu.addItem((item) => item.setTitle('Export to Word with AGLC4 footnotes').setIcon('file-output').onClick(() => { void this.exportFile(file, 'docx'); }));
 			menu.addItem((item) => item.setTitle('Export to HTML with AGLC4 footnotes').setIcon('file-code').onClick(() => { void this.exportFile(file, 'html'); }));
 		}));
-		this.app.workspace.onLayoutReady(() => { this.lastFile = this.app.workspace.getActiveFile(); });
+		this.registerEvent(this.app.vault.on('delete', (file) => { if (this.customSets.delete(file.path)) this.refreshEditors(); }));
+		this.registerEvent(this.app.vault.on('rename', (file, old) => {
+			const set = this.customSets.get(old);
+			if (!set || !(file instanceof TFile)) return;
+			this.customSets.delete(old);
+			this.customSets.set(file.path, { ...set, path: file.path, sources: [file.path], description: `Custom prompt set (${file.path})` });
+		}));
+		this.app.workspace.onLayoutReady(() => {
+			this.lastFile = this.app.workspace.getActiveFile();
+			void this.loadCustomSets();
+		});
 	}
 
 	private isMarkdown(file: TAbstractFile | null): file is TFile {
@@ -284,6 +301,26 @@ export default class Aglc4Plugin extends Plugin {
 				const left = analyseDocument(current, { disabled: new Set(this.settings.disabledRules), showInfo: false }).issues.length;
 				new Notice(`Applied ${total} ${total === 1 ? 'fix' : 'fixes'}.${left > 0 ? ` ${left} ${left === 1 ? 'problem needs' : 'problems need'} your attention.` : ''}`);
 			},
+		});
+		this.addCommand({
+			id: 'choose-paragraph-prompts',
+			name: 'Choose paragraph prompts for this note',
+			checkCallback: (checking) => {
+				const file = this.app.workspace.getActiveFile();
+				if (!this.isMarkdown(file)) return false;
+				if (!checking) this.choosePrompts(file);
+				return true;
+			},
+		});
+		this.addCommand({
+			id: 'new-legal-essay',
+			name: 'New legal essay or problem answer',
+			callback: () => this.newLegalEssay(),
+		});
+		this.addCommand({
+			id: 'copy-prompt-set',
+			name: 'Copy a prompt set to edit as your own',
+			callback: () => this.copyPromptSet(),
 		});
 		this.addCommand({
 			id: 'create-example-essay',
@@ -748,6 +785,100 @@ export default class Aglc4Plugin extends Plugin {
 		const file = await this.app.vault.create(path, EXAMPLE_ESSAY);
 		await this.app.workspace.getLeaf('tab').openFile(file);
 		new Notice(`Created ${file.basename}. The comment at the top is a short tour of what to try.`, 8000);
+	}
+
+	// Paragraph prompts
+
+	/** Every prompt set: the built-in sets, then those defined in notes. */
+	promptSets(): PromptSet[] {
+		return [...BUILT_IN_SETS, ...[...this.customSets.values()].sort((a, b) => a.name.localeCompare(b.name))];
+	}
+
+	/** The prompt set a note's property chooses, if prompts are on. */
+	promptSetFor(path: string | null): PromptSet | null {
+		if (!this.settings.paragraphPrompts) return null;
+		return findSet(this.frontmatterOf(path)?.[PROMPTS_PROPERTY], [...this.customSets.values()]);
+	}
+
+	private readCustomSet(file: TFile, text: string, frontmatter: Record<string, unknown> | undefined) {
+		const set = parseCustomSet(file.path, frontmatter, text);
+		if (set) this.customSets.set(file.path, set);
+		else this.customSets.delete(file.path);
+		this.refreshEditors();
+	}
+
+	/** Find the notes that define prompt sets (by their property, from the metadata cache). */
+	private async loadCustomSets() {
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+			if (fm?.[CUSTOM_SET_PROPERTY] === undefined) continue;
+			const set = parseCustomSet(file.path, fm, await this.app.vault.cachedRead(file));
+			if (set) this.customSets.set(file.path, set);
+		}
+		if (this.customSets.size > 0) this.refreshEditors();
+	}
+
+	private choosePrompts(file: TFile) {
+		new PromptSetModal(this.app, this.promptSets(), 'Paragraph prompts for this note', true, (set) => {
+			void this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+				if (!set) { delete fm[PROMPTS_PROPERTY]; return; }
+				fm[PROMPTS_PROPERTY] = set.custom ? set.name : set.id;
+				if (!this.enabledFor(file)) fm[ON_PROPERTY] = true;
+			}).then(() => {
+				if (set && !this.settings.paragraphPrompts) new Notice('Paragraph prompts are turned off in settings: turn on "Show paragraph prompts" to see them.', 8000);
+				else if (set) new Notice(`Paragraph prompts: ${set.name}. They show at an empty paragraph.`);
+			});
+		}).open();
+	}
+
+	private newLegalEssay() {
+		new PromptSetModal(this.app, this.promptSets(), 'What kind of essay or answer?', false, (set) => {
+			if (!set) return;
+			new PromptModal(this.app, 'New legal essay', 'Title', set.kind === 'problem' ? 'Problem answer' : 'Essay', (title) => {
+				void this.createFromOutline(set, title.trim() || 'Essay');
+			}).open();
+		}).open();
+	}
+
+	/** A file name that is free in `folder`, from `name`. */
+	private newNotePath(folder: string, name: string): string {
+		const base = name.replace(/[\\/:*?"<>|#^[\]]/g, '').trim() || 'Untitled';
+		const at = (n: number) => normalizePath(`${folder ? `${folder}/` : ''}${base}${n > 1 ? ` ${n}` : ''}.md`);
+		let n = 1;
+		while (this.app.vault.getAbstractFileByPath(at(n))) n++;
+		return at(n);
+	}
+
+	private async createFromOutline(set: PromptSet, title: string) {
+		const folder = this.app.fileManager.getNewFileParent(this.app.workspace.getActiveFile()?.path ?? '').path;
+		const text = outline(set, title);
+		const file = await this.app.vault.create(this.newNotePath(folder === '/' ? '' : folder, title), text);
+		const leaf = this.app.workspace.getLeaf('tab');
+		await leaf.openFile(file);
+		// Start under the first section heading, where its first prompt shows.
+		const view = leaf.view instanceof MarkdownView ? leaf.view : null;
+		const first = /\n##+ [^\n]*\n/.exec(text);
+		if (view && first) {
+			const at = view.editor.offsetToPos(first.index + first[0].length);
+			view.editor.setCursor(at);
+			view.editor.focus();
+		}
+		if (!this.settings.paragraphPrompts) new Notice('Paragraph prompts are turned off in settings: turn on "Show paragraph prompts" to see them.', 8000);
+	}
+
+	private copyPromptSet() {
+		new PromptSetModal(this.app, this.promptSets(), 'Copy which prompt set?', false, (set) => {
+			if (!set) return;
+			new PromptModal(this.app, 'Copy prompt set', 'Name of your set', `My ${set.name.replace(/^(?:Problem question|Essay): /, '')}`, (name) => {
+				const n = name.trim();
+				if (!n) return;
+				if (this.promptSets().some((s) => s.name.toLowerCase() === n.toLowerCase())) {
+					new Notice(`There is already a prompt set called "${n}".`);
+					return;
+				}
+				void this.app.vault.create(this.newNotePath('', `Prompts - ${n}`), setToNote(set, n)).then((file) => this.app.workspace.getLeaf('tab').openFile(file));
+			}).open();
+		}).open();
 	}
 
 	exportOptions(file: TFile): ExportOptions {

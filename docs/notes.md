@@ -42,6 +42,7 @@ A note's properties can set its style, overriding the settings for that note onl
 | `aglc-page-numbers` | Page numbers | `true` or `false` |
 | `aglc-title` | Title from file name | `true` or `false` |
 | `aglc-keep-footnotes-together` | Keep footnotes on one page | `true` or `false` |
+| `aglc-prompts` | [Paragraph prompts](paragraph-prompts.md) for the note | `irac`, `ilac`, `hirac`, `mirat`, `critical`, `discuss`, or the name of your own set |
 
 ```yaml
 ---

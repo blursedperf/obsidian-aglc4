@@ -6,11 +6,12 @@ Step-by-step guides for the common jobs. Each step links to the page that explai
 
 1. **Create the note.** Make a new note for the assignment. If the plugin is limited to assignment notes, run **Turn AGLC4 on for this note** ([notes](notes.md)).
 2. **Set its style, if it differs from your usual one.** Add properties such as `aglc-headings: aglc` (numbered AGLC4 headings) or `aglc-line-spacing: 2` ([a note's own style](notes.md#a-notes-own-style)).
-3. **Write with plain headings.** Use `##` for the main parts and `###` below them. Don't type the numbers: with AGLC4 headings they are added for you and stay right as you move sections ([headings](headings.md)).
-4. **Add footnotes as you go.** At the end of a sentence, run **Insert footnote** (give it a hotkey: see below). Write the citation in the pane that opens; the plugin suggests each next element. Press **Enter** after the closing full stop to go back to your text ([writing footnotes](writing-footnotes.md)).
-5. **Cite again with Ibid and (n X).** For the source in the footnote just before, write `Ibid` (with a pinpoint if it changes: `Ibid 45`). For a source cited earlier, use its short title and `(n X)`: `*Mabo* (n 1) 42`. The plugin tells you when one of these is needed, and keeps every `(n X)` pointing at the right footnote as you add and move footnotes.
-6. **Fix problems as they appear,** or leave them and run **Fix all automatically fixable problems** at the end. The status bar shows how many remain; click it for a list ([checking](checking.md)).
-7. **Check the layout** in the page preview as you go ([page preview](page-preview.md)).
+3. **Turn on paragraph prompts, if you want them.** Run **Choose paragraph prompts for this note** and pick the kind of answer: IRAC for a problem question, critical analysis or "discuss" for an essay. Or start with **New legal essay or problem answer**, which creates the note with its outline ([paragraph prompts](paragraph-prompts.md)).
+4. **Write with plain headings.** Use `##` for the main parts and `###` below them. Don't type the numbers: with AGLC4 headings they are added for you and stay right as you move sections ([headings](headings.md)).
+5. **Add footnotes as you go.** At the end of a sentence, run **Insert footnote** (give it a hotkey: see below). Write the citation in the pane that opens; the plugin suggests each next element. Press **Enter** after the closing full stop to go back to your text ([writing footnotes](writing-footnotes.md)).
+6. **Cite again with Ibid and (n X).** For the source in the footnote just before, write `Ibid` (with a pinpoint if it changes: `Ibid 45`). For a source cited earlier, use its short title and `(n X)`: `*Mabo* (n 1) 42`. The plugin tells you when one of these is needed, and keeps every `(n X)` pointing at the right footnote as you add and move footnotes.
+7. **Fix problems as they appear,** or leave them and run **Fix all automatically fixable problems** at the end. The status bar shows how many remain; click it for a list ([checking](checking.md)).
+8. **Check the layout** in the page preview as you go ([page preview](page-preview.md)).
 
 Tip: give **Insert footnote** a hotkey in **Settings → Hotkeys** (for example Ctrl/Cmd+Shift+F). It is the command you will use most.
 

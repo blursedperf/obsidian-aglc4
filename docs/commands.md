@@ -29,6 +29,14 @@ Run commands from the command palette (Ctrl/Cmd+P; type "AGLC4" to list them). G
 | **Insert bibliography of cited sources** | Adds the bibliography at the end of the note, where you can edit it ([bibliography](bibliography.md)) |
 | **Import Word document** | Turns a `.docx` into a note with its footnotes (also: right-click a `.docx`) ([import](import.md)) |
 
+## Paragraph prompts
+
+| Command | What it does |
+| --- | --- |
+| **Choose paragraph prompts for this note** | Turns on prompts for a kind of essay or problem answer (IRAC, ILAC, HIRAC, MIRAT, critical analysis, "discuss", or your own), or off ([paragraph prompts](paragraph-prompts.md)) |
+| **New legal essay or problem answer** | Creates a note with the outline of the kind you choose, and its prompts on |
+| **Copy a prompt set to edit as your own** | Copies a set of prompts to a note, where you can edit it as your own set |
+
 ## Version history
 
 | Command | What it does |

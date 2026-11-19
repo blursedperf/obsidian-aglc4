@@ -38,6 +38,14 @@
 	user-select: none;
 }
 
+/* Paragraph prompts, shown faintly at an empty paragraph; never part of the note */
+.aglc-prompt {
+	color: var(--text-faint);
+	font-style: italic;
+	pointer-events: none;
+	user-select: none;
+}
+
 /* AGLC4 heading numbers, shown before headings in the editor */
 .aglc-heading-num {
 	color: var(--text-faint);

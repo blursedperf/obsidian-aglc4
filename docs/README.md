@@ -12,6 +12,7 @@ New to the plugin? Start with **[Getting started](getting-started.md)**: it take
 | [Workflows](workflows.md) | Step by step: writing an assignment, importing a Word draft, submitting |
 | [Writing footnotes](writing-footnotes.md) | Inserting footnotes, the footnote pane, returning to the text, keeping footnotes in order, `(n X)` |
 | [Next element](next-element.md) | The hint, popup and command that suggest the next part of a citation |
+| [Paragraph prompts](paragraph-prompts.md) | Reminders of what each part of an essay or problem answer (IRAC, MIRAT, critical analysis, "discuss") should do, and your own sets |
 | [Checking citations](checking.md) | Underlines, explanations, fixes, ignoring a rule, what is and is not checked |
 | [Rules reference](rules.md) | Every rule the plugin checks, with an example and its AGLC4 rule |
 | [Headings](headings.md) | The AGLC4 heading hierarchy (I, A, 1, (a), (i)) |

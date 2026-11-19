@@ -23,6 +23,10 @@ Open **Settings → AGLC4 Citations**. Many style settings can also be set for o
 - **Suggest as you type**: open the list of next elements after a space, comma, bracket or closing italics.
 - **Status bar**: show the number of problems and the next element.
 
+## Paragraph prompts
+
+- **Show paragraph prompts**: show the faint reminders of what each part of an essay or problem answer should do, in notes with paragraph prompts. Turn off to hide them in every note ([paragraph prompts](paragraph-prompts.md)).
+
 ## Footnotes
 
 - **Write new footnotes in**: a pane below the note (default on desktop), or the note itself ([writing footnotes](writing-footnotes.md)).
