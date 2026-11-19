@@ -1,5 +1,6 @@
 import { type App, PluginSettingTab, Setting, type SettingDefinitionItem } from 'obsidian';
 import type { HeadingScheme, TopLevel } from './layout/headings';
+import type { Scope } from './scope';
 import type Aglc4Plugin from './main';
 
 export interface Aglc4Settings {
@@ -32,6 +33,9 @@ export interface Aglc4Settings {
 	historyFolder: string;
 	historyInterval: number;
 	historyKeepAll: boolean;
+	scope: Scope;
+	scopeFolders: string;
+	historyScope: 'all' | 'aglc';
 }
 
 export const DEFAULT_SETTINGS: Aglc4Settings = {
@@ -64,6 +68,9 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	historyFolder: '.aglc-history',
 	historyInterval: 2,
 	historyKeepAll: false,
+	scope: 'all',
+	scopeFolders: '',
+	historyScope: 'all',
 };
 
 type Key = keyof Aglc4Settings;
@@ -86,6 +93,13 @@ interface Group {
 
 /** Every setting, defined once: rendered declaratively on Obsidian 1.13+ and by display() before that. */
 const GROUPS: Group[] = [
+	{
+		heading: 'Notes',
+		items: [
+			{ name: 'Use AGLC4 in', desc: 'Which notes the plugin works in. Assignment notes are those with the property "aglc" ticked: use "Turn AGLC4 on for this note", or click "AGLC4 off" in the status bar. In other notes nothing is checked, underlined, numbered or changed automatically; commands you run there (such as export) still work. With all notes, a note is left out by unticking its "aglc" property.', control: { type: 'dropdown', key: 'scope', options: { all: 'All notes', marked: 'Assignment notes only', 'marked-folders': 'Assignment notes, and notes in these folders' } } },
+			{ name: 'Folders', desc: 'With "Assignment notes, and notes in these folders": every note in these folders (and the folders inside them) is on. One folder per line, eg Law/Assignments.', control: { type: 'textarea', key: 'scopeFolders', rows: 3 } },
+		],
+	},
 	{
 		heading: 'Checking',
 		items: [
@@ -127,6 +141,7 @@ const GROUPS: Group[] = [
 			{ name: 'Keep version history', desc: 'Save versions of your notes as you write (and before the plugin rewrites one, or overwrites an exported Word file), so any earlier version can be restored, as in Word or Google Docs. Kept on this device, in the folder below. Open it with "Show version history" or the clock icon.', control: { type: 'toggle', key: 'historyEnabled' } },
 			{ name: 'History folder', desc: 'Vault folder for the history. A folder starting with "." is hidden from the file list. If you back up or sync your vault folder (iCloud, Dropbox, OneDrive, Time Machine), the history is backed up with it. Changing the folder starts a new history; the old folder is left where it is.', control: { type: 'text', key: 'historyFolder', placeholder: '.aglc-history' } },
 			{ name: 'Minutes between versions', desc: 'While you write, save a version at most this often. A version is also saved when you open or leave a note.', control: { type: 'slider', key: 'historyInterval', min: 1, max: 30, step: 1 } },
+			{ name: 'Keep history of', desc: 'All notes, or only the notes the plugin works in (see "Use AGLC4 in").', control: { type: 'dropdown', key: 'historyScope', options: { all: 'All notes', aglc: 'Only notes AGLC4 is used in' } } },
 			{ name: 'Keep every version', desc: 'Keep every version forever. When off, every version from the last day is kept, then one per hour for a month, then one per day, forever. Named versions are always kept.', control: { type: 'toggle', key: 'historyKeepAll' } },
 		],
 	},
@@ -179,6 +194,11 @@ export class Aglc4SettingTab extends PluginSettingTab {
 			case 'font':
 				s.font = String(value).trim() || DEFAULT_SETTINGS.font;
 				break;
+			case 'scope':
+				s.scope = value;
+				await this.plugin.saveSettings();
+				if (value !== 'all') this.plugin.offerToMarkNotes();
+				return;
 			case 'historyFolder':
 				s.historyFolder = String(value).trim().replace(/^\/+|\/+$/g, '') || DEFAULT_SETTINGS.historyFolder;
 				break;

@@ -22,7 +22,8 @@ export class HistoryManager {
 	private last = new Map<string, number>();
 	private warned = false;
 
-	constructor(private app: App, private settings: () => HistorySettings) {}
+	/** `include` limits the history to some notes (see the "Keep history of" setting). */
+	constructor(private app: App, private settings: () => HistorySettings, private include: (file: TFile) => boolean = () => true) {}
 
 	get enabled(): boolean {
 		return this.settings().historyEnabled;
@@ -44,7 +45,7 @@ export class HistoryManager {
 
 	/** Notes are tracked; the history folder itself never is. */
 	tracks(file: TAbstractFile | null): file is TFile {
-		return file instanceof TFile && file.extension === 'md' && !file.path.startsWith(`${this.root()}/`);
+		return file instanceof TFile && file.extension === 'md' && !file.path.startsWith(`${this.root()}/`) && this.include(file);
 	}
 
 	register(plugin: Plugin) {

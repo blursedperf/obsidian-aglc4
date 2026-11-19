@@ -13,6 +13,7 @@ import { exportHtml } from './export/html';
 import { PAGE_PREVIEW_VIEW, PagePreviewView } from './layout/view';
 import { importDocx } from './import/docx';
 import { HistoryManager } from './history/manager';
+import { ON_PROPERTY, noteEnabled, noteSettings } from './scope';
 import { HISTORY_VIEW, HistoryView, PromptModal, formatDay, formatTime } from './history/view';
 import type { Entry } from './history/store';
 import { type Aglc4Settings, Aglc4SettingTab, DEFAULT_SETTINGS } from './settings';
@@ -134,7 +135,9 @@ export default class Aglc4Plugin extends Plugin {
 	private statusEl: HTMLElement | null = null;
 	private lastFile: TFile | null = null;
 	private lastAnalysis: DocumentAnalysis | null = null;
-	readonly history = new HistoryManager(this.app, () => this.settings);
+	readonly history = new HistoryManager(this.app, () => this.settings, (file) => this.settings.historyScope === 'all' || this.enabledFor(file));
+	/** True while the status bar shows that the active note is off. */
+	private statusOff = false;
 
 	async onload() {
 		await this.loadSettings();
@@ -151,17 +154,31 @@ export default class Aglc4Plugin extends Plugin {
 		const getSettings = () => this.settings;
 		this.registerEditorExtension(buildExtension({
 			get settings() { return getSettings(); },
+			forPath: (path) => this.forPath(path),
 			report: (analysis, next, view) => this.report(analysis, next, view),
 			disableRule: (rule) => { void this.disableRule(rule); },
 			returnFromFootnote: (view, finished) => this.returnFromFootnote(view, finished),
 			vimMode: () => this.vimMode(),
 		}));
-		this.registerEditorSuggest(new NextElementSuggest(this.app, () => this.settings));
+		this.registerEditorSuggest(new NextElementSuggest(this.app, () => this.settings, (file) => this.enabledFor(file)));
+		// A note's properties decide whether the plugin works in it, and its style.
+		this.registerEvent(this.app.metadataCache.on('changed', (file) => {
+			if (file !== this.app.workspace.getActiveFile()) return;
+			this.refreshEditors();
+			for (const leaf of this.app.workspace.getLeavesOfType(PAGE_PREVIEW_VIEW)) {
+				if (leaf.view instanceof PagePreviewView) leaf.view.rerender();
+			}
+		}));
 
 		this.statusEl = this.addStatusBarItem();
 		this.statusEl.addClass('aglc-status', 'mod-clickable');
 		this.statusEl.setAttribute('aria-label', 'Show AGLC4 problems in this note');
 		this.registerDomEvent(this.statusEl, 'click', () => {
+			const file = this.app.workspace.getActiveFile();
+			if (this.statusOff && this.isMarkdown(file)) {
+				void this.setNoteEnabled(file, true);
+				return;
+			}
 			const editor = this.activeEditor();
 			if (editor) this.showIssues(editor);
 		});
@@ -268,6 +285,26 @@ export default class Aglc4Plugin extends Plugin {
 			},
 		});
 		this.addCommand({
+			id: 'turn-on-for-note',
+			name: 'Turn AGLC4 on for this note',
+			checkCallback: (checking) => {
+				const file = this.app.workspace.getActiveFile();
+				if (!this.isMarkdown(file) || this.enabledFor(file)) return false;
+				if (!checking) void this.setNoteEnabled(file, true);
+				return true;
+			},
+		});
+		this.addCommand({
+			id: 'turn-off-for-note',
+			name: 'Turn AGLC4 off for this note',
+			checkCallback: (checking) => {
+				const file = this.app.workspace.getActiveFile();
+				if (!this.isMarkdown(file) || !this.enabledFor(file)) return false;
+				if (!checking) void this.setNoteEnabled(file, false);
+				return true;
+			},
+		});
+		this.addCommand({
 			id: 'show-version-history',
 			name: 'Show version history',
 			callback: () => { void this.openHistory(); },
@@ -368,11 +405,20 @@ export default class Aglc4Plugin extends Plugin {
 
 	// -----------------------------------------------------------------------------------------------------
 
-	private report(analysis: DocumentAnalysis, next: string | null, view: EditorView) {
+	private report(analysis: DocumentAnalysis | null, next: string | null, view: EditorView) {
 		const editor = this.activeEditor();
 		if (!editor || cmOf(editor) !== view) return;
 		this.lastAnalysis = analysis;
+		this.statusOff = analysis === null;
 		if (!this.statusEl || !this.settings.statusBar) return;
+		this.statusEl.toggleClass('aglc-status-off', analysis === null);
+		if (analysis === null) {
+			this.statusEl.setText('AGLC4 off');
+			this.statusEl.setAttribute('aria-label', 'AGLC4 is off for this note. Click to turn it on.');
+			this.statusEl.toggleClass('aglc-status-errors', false);
+			return;
+		}
+		this.statusEl.setAttribute('aria-label', 'Show AGLC4 problems in this note');
 		const count = (s: Issue['severity']) => analysis.issues.filter((i) => i.severity === s).length;
 		const errors = count('error');
 		const warnings = count('warning');
@@ -550,6 +596,8 @@ export default class Aglc4Plugin extends Plugin {
 		this.lastFile = current;
 		if (previous && previous !== current) this.history.flush(previous);
 		if (!this.settings.tidyOnLeave || !previous || previous === current || previous.extension !== 'md') return;
+		// Notes the plugin does not work in are never changed automatically.
+		if (!this.enabledFor(previous)) return;
 		if (!this.app.vault.getAbstractFileByPath(previous.path)) return;
 		const opts = { renumber: this.settings.renumber, convertInline: this.settings.convertInline };
 		const tidy = (text: string): string => {
@@ -604,7 +652,9 @@ export default class Aglc4Plugin extends Plugin {
 		const base = normalizePath(`${folder}/${name.replace(/[\\/:*?"<>|#^[\]]/g, ' ').trim() || 'Imported document'}`);
 		let path = `${base}.md`;
 		for (let n = 2; this.app.vault.getAbstractFileByPath(path); n++) path = `${base} ${n}.md`;
-		const file = await this.app.vault.create(path, result.markdown);
+		// An imported document is an assignment: mark it, so the plugin works in it whatever "Use AGLC4 in" is.
+		const markdown = result.markdown.startsWith('---\n') ? result.markdown.replace(/^---\n/, `---\n${ON_PROPERTY}: true\n`) : `---\n${ON_PROPERTY}: true\n---\n\n${result.markdown}`;
+		const file = await this.app.vault.create(path, markdown);
 		await this.app.workspace.getLeaf('tab').openFile(file);
 
 		const problems = analyseDocument(result.markdown, { disabled: new Set(this.settings.disabledRules), showInfo: false }).issues.length;
@@ -636,8 +686,57 @@ export default class Aglc4Plugin extends Plugin {
 	// -----------------------------------------------------------------------------------------------------
 	// Export
 
+	// -----------------------------------------------------------------------------------------------------
+	// Which notes
+
+	private frontmatterOf(path: string | null): Record<string, unknown> | null {
+		if (!path) return null;
+		const f = this.app.vault.getAbstractFileByPath(path);
+		return f instanceof TFile ? (this.app.metadataCache.getFileCache(f)?.frontmatter ?? null) : null;
+	}
+
+	/** Whether the plugin works in the note at `path`, and its settings with the note's own properties. */
+	forPath(path: string | null): { enabled: boolean; settings: Aglc4Settings } {
+		const fm = this.frontmatterOf(path);
+		return { enabled: noteEnabled(this.settings, path, fm), settings: noteSettings(this.settings, fm) };
+	}
+
+	enabledFor(file: TFile | null): boolean {
+		return this.forPath(file?.path ?? null).enabled;
+	}
+
+	/** Turn the plugin on or off for a note, with its "aglc" property. */
+	async setNoteEnabled(file: TFile, on: boolean) {
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => { fm[ON_PROPERTY] = on; });
+		new Notice(on ? `AGLC4 is on for ${file.basename}.` : `AGLC4 is off for ${file.basename}: it is not checked or changed automatically.`);
+	}
+
+	/**
+	 * When the plugin is limited to assignment notes, offer to mark the notes that have footnotes, so that
+	 * the notes it already worked in stay on.
+	 */
+	offerToMarkNotes() {
+		const notes = this.app.vault.getMarkdownFiles().filter((f) => {
+			const cache = this.app.metadataCache.getFileCache(f);
+			return (cache?.footnotes?.length ?? 0) > 0 && cache?.frontmatter?.[ON_PROPERTY] === undefined && !this.enabledFor(f);
+		});
+		if (notes.length === 0) return;
+		new ConfirmModal(
+			this.app,
+			'Mark your existing assignments?',
+			`${notes.length} ${notes.length === 1 ? 'note has' : 'notes have'} footnotes and would now be off. Mark ${notes.length === 1 ? 'it' : 'them'} as assignment notes (property "aglc" ticked) so AGLC4 stays on? You can turn any note off later with "Turn AGLC4 off for this note".`,
+			'Mark them',
+			() => {
+				void (async () => {
+					for (const f of notes) await this.app.fileManager.processFrontMatter(f, (fm: Record<string, unknown>) => { fm[ON_PROPERTY] = true; });
+					new Notice(`Marked ${notes.length} ${notes.length === 1 ? 'note' : 'notes'} as assignment notes.`);
+				})();
+			},
+		).open();
+	}
+
 	exportOptions(file: TFile): ExportOptions {
-		const s = this.settings;
+		const s = this.forPath(file.path).settings;
 		return {
 			font: s.font,
 			fontSize: s.fontSize,

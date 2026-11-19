@@ -9,3 +9,6 @@ export class Notice { constructor(public message: string) { notices.push(message
 export function normalizePath(p: string): string { return p.replace(/\/+/g, '/').replace(/^\/|\/$/g, ''); }
 export type App = unknown;
 export type Plugin = unknown;
+export class PluginSettingTab { constructor(..._args: unknown[]) {} }
+export class Setting { constructor(..._args: unknown[]) {} }
+export type SettingDefinitionItem = unknown;

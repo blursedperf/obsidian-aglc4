@@ -16,8 +16,10 @@ import { atFinishedFootnote, footnoteAt, minimalChange, referenceFor } from './c
 
 export interface AglcHost {
 	settings: Aglc4Settings;
-	/** Called after each analysis of the focused editor, for the status bar. */
-	report(analysis: DocumentAnalysis, next: string | null, view: EditorView): void;
+	/** Whether the plugin works in the note at `path`, and the note's settings (with its own properties). */
+	forPath(path: string | null): { enabled: boolean; settings: Aglc4Settings };
+	/** Called after each analysis of the focused editor, for the status bar; null in a note that is off. */
+	report(analysis: DocumentAnalysis | null, next: string | null, view: EditorView): void;
 	disableRule(rule: string): void;
 	/**
 	 * Go back from the footnote at the cursor to its reference. `finished` is true when the footnote was
@@ -72,6 +74,10 @@ function headingNumbers(text: string, top: TopLevel): { at: number; number: stri
 	});
 }
 
+function pathOf(view: EditorView): string | null {
+	return view.state.field(editorInfoField, false)?.file?.path ?? null;
+}
+
 function isConsistent(scan: FootnoteScan): boolean {
 	return scan.notes.every((n) => n.label === null || n.def !== null) && scan.defs.every((d) => scan.notes.some((n) => n.def === d));
 }
@@ -94,7 +100,7 @@ export function buildExtension(host: AglcHost): Extension {
 			if (u.docChanged || u.selectionSet || u.focusChanged || refresh) this.compute();
 			const path = this.currentPath();
 			if (path !== this.path) this.syncSnapshot(true);
-			else if (u.docChanged && host.settings.syncCrossRefs) this.scheduleSync();
+			else if (u.docChanged && this.syncing()) this.scheduleSync();
 		}
 
 		destroy() {
@@ -102,7 +108,12 @@ export function buildExtension(host: AglcHost): Extension {
 		}
 
 		private currentPath(): string | null {
-			return this.view.state.field(editorInfoField, false)?.file?.path ?? null;
+			return pathOf(this.view);
+		}
+
+		private syncing(): boolean {
+			const n = host.forPath(this.currentPath());
+			return n.enabled && n.settings.syncCrossRefs;
 		}
 
 		private scheduleSync() {
@@ -119,7 +130,7 @@ export function buildExtension(host: AglcHost): Extension {
 			const before = this.snapshot;
 			this.snapshot = keys;
 			this.path = this.currentPath();
-			if (reset || !before || !host.settings.syncCrossRefs) return;
+			if (reset || !before || !this.syncing()) return;
 			if (before.join('\n') === keys.join('\n')) return;
 			const r = remapCrossReferences(text, before, keys);
 			if (r.changed === 0) return;
@@ -128,7 +139,15 @@ export function buildExtension(host: AglcHost): Extension {
 		}
 
 		private compute() {
-			const s = host.settings;
+			const note = host.forPath(this.currentPath());
+			if (!note.enabled) {
+				// A note the plugin does not work in: nothing is shown.
+				this.analysis = null;
+				this.decorations = Decoration.none;
+				host.report(null, null, this.view);
+				return;
+			}
+			const s = note.settings;
 			const state = this.view.state;
 			const text = state.doc.toString();
 			const cursor = state.selection.main.head;
@@ -170,7 +189,8 @@ export function buildExtension(host: AglcHost): Extension {
 	}, { decorations: (v) => v.decorations });
 
 	const tooltip = hoverTooltip((view, pos) => {
-		if (!host.settings.underline) return null;
+		const note = host.forPath(pathOf(view));
+		if (!note.enabled || !note.settings.underline) return null;
 		const inst = view.plugin(plugin);
 		const issues = inst?.analysis?.issues.filter((i) => pos >= i.from && pos <= i.to) ?? [];
 		if (issues.length === 0) return null;
@@ -188,7 +208,8 @@ export function buildExtension(host: AglcHost): Extension {
 		{
 			key: 'Enter',
 			run: (view) => {
-				if (!host.settings.returnOnFinish || !view.state.selection.main.empty) return false;
+				const note = host.forPath(pathOf(view));
+				if (!note.enabled || !note.settings.returnOnFinish || !view.state.selection.main.empty) return false;
 				const text = view.state.doc.toString();
 				if (!atFinishedFootnote(text, view.state.selection.main.head)) return false;
 				return host.returnFromFootnote(view, true);
@@ -197,7 +218,8 @@ export function buildExtension(host: AglcHost): Extension {
 		{
 			key: 'Escape',
 			run: (view) => {
-				if (!host.settings.returnOnFinish || host.vimMode()) return false;
+				const note = host.forPath(pathOf(view));
+				if (!note.enabled || !note.settings.returnOnFinish || host.vimMode()) return false;
 				if (view.dom.ownerDocument.querySelector('.suggestion-container')) return false;
 				if (referenceFor(view.state.doc.toString(), view.state.selection.main.head) === null) return false;
 				return host.returnFromFootnote(view, false);

@@ -40,13 +40,13 @@ function renderSuggestion(s: Suggestion, el: HTMLElement): void {
 }
 
 export class NextElementSuggest extends EditorSuggest<Suggestion> {
-	constructor(app: App, private settings: () => Aglc4Settings) {
+	constructor(app: App, private settings: () => Aglc4Settings, private enabledFor: (file: TFile | null) => boolean = () => true) {
 		super(app);
 		this.limit = 20;
 	}
 
-	onTrigger(cursor: EditorPosition, editor: Editor, _file: TFile | null): EditorSuggestTriggerInfo | null {
-		if (!this.settings().autoSuggest) return null;
+	onTrigger(cursor: EditorPosition, editor: Editor, file: TFile | null): EditorSuggestTriggerInfo | null {
+		if (!this.settings().autoSuggest || !this.enabledFor(file)) return null;
 		const line = editor.getLine(cursor.line).slice(0, cursor.ch);
 		if (!TRIGGER_AFTER.test(line) && !/\]:\s?$/.test(line) && !/\^\[$/.test(line)) return null;
 		const ctx = footnoteTextBeforeCursor(editor);
