@@ -158,10 +158,10 @@ As in the brief, typed in `packages/legal-core-api` and documented in `plugins/l
 | Mobile | No Node APIs in any package (enforced by an ESLint rule); `Packer.toArrayBuffer()` kept (mobile-safe, equivalent to `toBlob()`); vault binary APIs and `Uint8Array` throughout |
 | Docs tests and the offline audit read `src/` paths | Updated in Phase 2 to the new paths; the docs completeness tests keep working |
 
-## 8. Questions for you
+## 8. Decisions (approved)
 
-1. **Legal Core's id.** `legal-core` is generic, and ids must be unique across the whole community directory. I suggest `au-legal-core` (name "Legal Core (Australia)"). The API lookup would then be `getPlugin('au-legal-core')`. Which do you want?
-2. **Authority store location:** a vault file, `.legal-core/authorities.json` (my recommendation; it syncs and backs up with the vault), or Legal Core's `data.json`?
-3. **Markdown parser:** keep the existing one in `md-pipeline` (my recommendation; needed for identical output), rather than remark/micromark?
-4. **AGLC4's export when the core is present:** always use AGLC4's bundled engine, with the core used only for authorities and extensions (my recommendation; output can't vary with the core's version)? Or should the core's `exportDocx` be used when its API version matches?
-5. **"above n":** lock it in as exported-as-written, and leave a checker rule flagging it for a separate change after the refactor?
+1. **Legal Core's id:** `au-legal-core`, named "Legal Core (Australia)". The API lookup is `getPlugin('au-legal-core')`.
+2. **Authority store:** a vault file, `.legal-core/authorities.json`, written atomically.
+3. **Markdown parser:** the existing parser, kept in `md-pipeline`; remark or micromark may be added later as an option.
+4. **AGLC4's export with the core present:** always AGLC4's bundled engine. The core supplies only the authority store and the extension registry.
+5. **"above n":** locked in as exported as written. A rule flagging it as AGLC3 is a separate change after the refactor.
