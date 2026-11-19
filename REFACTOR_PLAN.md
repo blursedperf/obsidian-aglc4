@@ -172,3 +172,34 @@ AGLC4 Citations must work without Legal Core. Two automatic guards enforce it:
 3. **Markdown parser:** the existing parser, kept in `md-pipeline`; remark or micromark may be added later as an option.
 4. **AGLC4's export with the core present:** always AGLC4's bundled engine. The core supplies only the authority store and the extension registry.
 5. **"above n":** locked in as exported as written. A rule flagging it as AGLC3 is a separate change after the refactor.
+
+## Outcome (phases 1–5)
+
+| Phase | Result |
+| --- | --- |
+| 1 | Eleven fixtures; golden Word XML and HTML generated from the code before the refactor; a snapshot of every setting key and default |
+| 2 | npm workspaces; the code in `packages/` and `plugins/aglc4`; every golden byte-identical |
+| 3 | `plugins/legal-core` (`au-legal-core`) with the API, the authority store, templates (styles), `API.md`; `packages/legal-core-api`; `examples/case-notes` |
+| 4 | AGLC4 Citations connects to Legal Core when it is there, shares citations after asking once, and copes with Legal Core being disabled mid-session; the goldens match with Legal Core absent, present and disabled |
+| 5 | `npm run dev:vault`; `QA.md`; the READMEs and the development guide |
+
+**Guarantees, enforced by tests and the build:**
+- AGLC4 Citations needs nothing but Obsidian at run time: the build fails otherwise.
+- It uses Legal Core only through `import type`: lint fails otherwise.
+- Its release contract is unchanged: the repository, root manifest and id, `versions.json`, root `styles.css` and `main.js`, and the release workflow's assets.
+- `npm run build`, which the release workflow runs, builds AGLC4 alone.
+- Its export is identical to before the refactor.
+- Its settings keep every key and default.
+
+**Changes from the plan:**
+- AGLC4's release files stay at the repository root, with no copy in `plugins/aglc4`.
+- The tests stay in `test/`.
+- Transforms gained `before`, and dependencies on steps from extensions that are not installed are allowed.
+- An authority record separates its identifying `key` from other `fields`.
+- Only correct citations are shared.
+
+**Left for later:**
+- Templates: merging numbering, headers and footers.
+- Publishing Legal Core from a repository of its own.
+- A checker rule flagging "above n" as AGLC3.
+
