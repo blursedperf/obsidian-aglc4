@@ -1,0 +1,19 @@
+{
+	"name": "@legal-core/legal-core-plugin",
+	"version": "0.1.0",
+	"private": true,
+	"description": "The Legal Core (Australia) Obsidian plugin (id au-legal-core). Its release files are in this folder: manifest.json and the built main.js.",
+	"type": "module",
+	"dependencies": {
+		"@legal-core/ldm": "*",
+		"@legal-core/md-pipeline": "*",
+		"@legal-core/docx-engine": "*",
+		"@legal-core/aglc": "*",
+		"@legal-core/authority-store": "*",
+		"@legal-core/api": "*",
+		"fflate": "^0.8.3"
+	},
+	"peerDependencies": {
+		"obsidian": "*"
+	}
+}

@@ -10,6 +10,7 @@ export default defineConfig(
 		'version-bump.mjs',
 		'versions.json',
 		'main.js',
+		'**/main.js',
 		'package.json',
 		'package-lock.json',
 		'tsconfig.json',
@@ -36,7 +37,7 @@ export default defineConfig(
 	{
 		// Packages and plugins must run on mobile: no Node APIs. And a package is used only through its
 		// public entry point (its index.ts), never its internal files.
-		files: ['packages/*/src/**/*.ts', 'plugins/*/src/**/*.ts'],
+		files: ['packages/*/src/**/*.ts', 'plugins/*/src/**/*.ts', 'examples/*/src/**/*.ts'],
 		rules: {
 			'no-restricted-imports': ['error', {
 				patterns: [

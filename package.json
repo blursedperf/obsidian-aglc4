@@ -44,6 +44,7 @@
 	},
 	"workspaces": [
 		"packages/*",
-		"plugins/*"
+		"plugins/*",
+		"examples/*"
 	]
 }
