@@ -14,6 +14,7 @@ export default defineConfig(
 		'package.json',
 		'package-lock.json',
 		'tsconfig.json',
+		'tsconfig.aglc4.json',
 		'test',
 		'scripts',
 		'sample-vault',

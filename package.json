@@ -5,11 +5,12 @@
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
-		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"dev": "node esbuild.config.mjs dev all",
+		"build": "tsc -noEmit -skipLibCheck -p tsconfig.aglc4.json && node esbuild.config.mjs production aglc4",
 		"test": "vitest run && node scripts/offline-audit.mjs",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"lint": "eslint ."
+		"lint": "eslint .",
+		"build:all": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production all"
 	},
 	"keywords": [
 		"obsidian",
