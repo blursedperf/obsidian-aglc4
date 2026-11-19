@@ -158,6 +158,13 @@ As in the brief, typed in `packages/legal-core-api` and documented in `plugins/l
 | Mobile | No Node APIs in any package (enforced by an ESLint rule); `Packer.toArrayBuffer()` kept (mobile-safe, equivalent to `toBlob()`); vault binary APIs and `Uint8Array` throughout |
 | Docs tests and the offline audit read `src/` paths | Updated in Phase 2 to the new paths; the docs completeness tests keep working |
 
+## Standalone guarantee (enforced)
+
+AGLC4 Citations must work without Legal Core. Two automatic guards enforce it:
+
+- **Build:** the AGLC4 build fails if `main.js` would load any module at run time other than what Obsidian provides (`obsidian`, `@codemirror/state`, `@codemirror/view`). Every package must be bundled in, and Legal Core can never become a run-time dependency. This runs in the release workflow too, which builds without running the tests.
+- **Lint:** AGLC4's source may never import the Legal Core plugin, and may import `@legal-core/api` only with `import type`, which compiles to nothing.
+
 ## 8. Decisions (approved)
 
 1. **Legal Core's id:** `au-legal-core`, named "Legal Core (Australia)". The API lookup is `getPlugin('au-legal-core')`.

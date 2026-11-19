@@ -52,4 +52,21 @@ export default defineConfig(
 			],
 		},
 	},
+	{
+		// AGLC4 Citations is standalone. It may use the Legal Core API's types (erased when compiled) to
+		// talk to Legal Core when it is installed, but never import Legal Core itself.
+		files: ['plugins/aglc4/src/**/*.ts'],
+		rules: {
+			'no-restricted-imports': ['error', {
+				paths: [{ name: '@legal-core/api', allowTypeImports: true, message: 'AGLC4 must work without Legal Core: import only types from @legal-core/api.' }],
+				patterns: [
+					{ regex: '^@legal-core/(legal-core|legal-core-plugin|au-legal-core)', message: 'AGLC4 must work without Legal Core: never import the Legal Core plugin.' },
+					{ regex: '^(\\.\\./)+legal-core/', message: 'AGLC4 must work without Legal Core: never import the Legal Core plugin.' },
+					{ regex: '^node:', message: 'Node APIs are not available on mobile.' },
+					{ regex: '^(fs|path|os|child_process|crypto|buffer|stream|util|url|http|https|net)(/|$)', message: 'Node APIs are not available on mobile.' },
+					{ regex: '^@legal-core/[^/]+/', message: 'Import a package through its entry point: @legal-core/<name>.' },
+				],
+			}],
+		},
+	},
 );

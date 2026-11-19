@@ -78,10 +78,28 @@ const context = await esbuild.context({
 	outfile: 'main.js',
 	// Not minified, so the released main.js can be read and reviewed.
 	minify: false,
+	metafile: true,
 });
 
+/**
+ * AGLC4 Citations is standalone: everything it needs is bundled into main.js, and at run time it loads
+ * only what Obsidian provides. Any other module (an unbundled package, or Legal Core) fails the build.
+ */
+const PROVIDED_BY_OBSIDIAN = new Set(['obsidian', '@codemirror/state', '@codemirror/view']);
+function checkStandalone(metafile) {
+	const loaded = new Set();
+	for (const output of Object.values(metafile.outputs)) {
+		for (const i of output.imports) if (i.external) loaded.add(i.path);
+	}
+	const extra = [...loaded].filter((m) => !PROVIDED_BY_OBSIDIAN.has(m));
+	if (extra.length > 0) {
+		throw new Error(`AGLC4 Citations must be standalone, but main.js would load: ${extra.join(', ')}. Bundle these instead.`);
+	}
+}
+
 if (prod) {
-	await context.rebuild();
+	const result = await context.rebuild();
+	checkStandalone(result.metafile);
 	process.exit(0);
 } else {
 	await context.watch();
