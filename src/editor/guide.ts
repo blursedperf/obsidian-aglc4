@@ -13,7 +13,7 @@
 import { type EditorState, type Extension, StateEffect, StateField, type Transaction } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemirror/view';
 import { editorInfoField } from 'obsidian';
-import { type Guide, guideAt } from '../prompts/engine';
+import { type Guide, guideAt, resolvePosition } from '../prompts/engine';
 import type { Prompt } from '../prompts/sets';
 import type { AglcHost } from './extension';
 import { refreshEffect } from './extension';
@@ -35,7 +35,7 @@ interface Choice {
 	guide: number | null;
 	/** How far the highlighted sentence is from the one counted automatically. */
 	shift: number;
-	/** An alternative shown in place of sentence `at`. */
+	/** An alternative shown in place of the sentence at position `at`. */
 	alternative: { at: number; index: number } | null;
 }
 
@@ -44,7 +44,7 @@ interface Shown {
 	prompt: Prompt;
 	options: number;
 	index: number;
-	/** The highlighted sentence; may be past the last when the paragraph has more sentences. */
+	/** The highlighted sentence; past the last when the paragraph has more sentences than the guides. */
 	current: number;
 	alternative: { text: string; index: number; count: number } | null;
 }
@@ -57,30 +57,41 @@ interface GuideState {
 
 const NONE: GuideState = { decorations: Decoration.none, choice: null, shown: null };
 
+/** The position of sentence `local` of guide `index`, counting from guide `base`. */
+function positionOf(options: Prompt[], base: number, index: number, local: number): number {
+	let p = local;
+	for (let i = base; i < index; i++) p += options[i]!.sentences.length;
+	return p;
+}
+
 function apply(choice: Choice | null, guide: Guide, alternatives: string[], action: GuideAction): Choice {
 	const c: Choice = choice ?? { from: guide.from, guide: null, shift: 0, alternative: null };
-	const prompt = guide.options[c.guide ?? guide.index] ?? guide.prompt;
-	const last = Math.max(0, prompt.sentences.length - 1);
-	const current = Math.max(0, guide.sentence + c.shift);
+	const base = c.guide ?? guide.index;
+	const position = Math.max(0, guide.sentence + c.shift);
+	const at = resolvePosition(guide.options, base, position);
+	// The last sentence the guides from `base` on can highlight.
+	const lastIndex = guide.options.length - 1;
+	const lastPosition = Math.max(0, positionOf(guide.options, base, lastIndex, guide.options[lastIndex]!.sentences.length) - 1);
 	switch (action.type) {
 		case 'sentence': {
-			const next = Math.min(last, Math.max(0, Math.min(current, last + 1) + action.step));
+			const next = Math.min(lastPosition, Math.max(0, Math.min(position, lastPosition + 1) + action.step));
 			return { ...c, shift: next - guide.sentence, alternative: null };
 		}
 		case 'sentence-at':
-			return { ...c, shift: Math.min(last, Math.max(0, action.index)) - guide.sentence, alternative: null };
+			return { ...c, shift: positionOf(guide.options, base, at.index, Math.max(0, action.index)) - guide.sentence, alternative: null };
 		case 'alternative': {
 			const n = alternatives.length;
 			if (n === 0) return c;
 			// Cycle through the alternatives, then back to the guide's own sentence (position 0).
-			const was = c.alternative?.at === current ? c.alternative.index + 1 : 0;
+			const was = c.alternative?.at === position ? c.alternative.index + 1 : 0;
 			const pos = (((was + action.step) % (n + 1)) + n + 1) % (n + 1);
-			return { ...c, alternative: pos === 0 ? null : { at: current, index: pos - 1 } };
+			return { ...c, alternative: pos === 0 ? null : { at: position, index: pos - 1 } };
 		}
 		case 'guide': {
+			// Another guide, from its first sentence: the next sentence written is that guide's first.
 			const n = guide.options.length;
-			const index = (((c.guide ?? guide.index) + action.step) % n + n) % n;
-			return { from: c.from, guide: index === guide.index ? null : index, shift: 0, alternative: null };
+			const index = ((at.index + action.step) % n + n) % n;
+			return { from: c.from, guide: index, shift: -guide.sentence, alternative: null };
 		}
 	}
 }
@@ -177,15 +188,14 @@ export function guideExtension(host: AglcHost): Extension {
 		// Choices made for this paragraph last while the cursor stays in it.
 		let choice = previous && previous.from === guide.from ? previous : null;
 		for (const e of tr?.effects ?? []) if (e.is(guideAction)) choice = apply(choice, guide, set.alternatives, e.value);
-		const index = choice?.guide ?? guide.index;
-		const prompt = guide.options[index] ?? guide.prompt;
-		const current = Math.max(0, guide.sentence + (choice?.shift ?? 0));
-		const alt = choice?.alternative && choice.alternative.at === current ? choice.alternative : null;
+		const position = Math.max(0, guide.sentence + (choice?.shift ?? 0));
+		const { index, local } = resolvePosition(guide.options, choice?.guide ?? guide.index, position);
+		const alt = choice?.alternative && choice.alternative.at === position ? choice.alternative : null;
 		const shown: Shown = {
-			prompt,
+			prompt: guide.options[index]!,
 			options: guide.options.length,
 			index,
-			current,
+			current: local,
 			alternative: alt ? { text: set.alternatives[alt.index]!, index: alt.index, count: set.alternatives.length } : null,
 		};
 		const widget = new GuideWidget(shown, host.settings.promptDetail !== 'current');

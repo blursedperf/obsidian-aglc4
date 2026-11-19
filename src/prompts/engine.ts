@@ -48,6 +48,23 @@ export interface Guide {
 	index: number;
 }
 
+/**
+ * Where sentence `position` of a paragraph falls, starting from guide `base`: a paragraph with more
+ * sentences than its guide carries on into the section's next guides, in order (an introduction written
+ * as one paragraph goes on from the thesis into the roadmap). Past the last guide, `local` is past its end.
+ */
+export function resolvePosition(options: Prompt[], base: number, position: number): { index: number; local: number } {
+	let index = base;
+	let local = Math.max(0, position);
+	while (index + 1 < options.length) {
+		const n = options[index]!.sentences.length;
+		if (n === 0 || local < n) break;
+		local -= n;
+		index++;
+	}
+	return { index, local };
+}
+
 /** A line that is not a paragraph of prose: a list item, quotation, table or indented code. */
 const NOT_PROSE = /^(?:\s*(?:>|[-*+][ \t]|\d+[.)][ \t]|\|)|(?: {4}|\t))/;
 const HEADING_LINE = /^(#{1,6})(?:[ \t]+(.*?))?[ \t]*#*[ \t]*$/;
@@ -108,7 +125,7 @@ export function guideAt(text: string, cursor: number, set: PromptSet): Guide | n
 	// The paragraphs written between that heading (or the title, or the start) and this one.
 	const sectionAt = heading ? heading.at : title && title.at < from ? title.at : -1;
 	const sectionStart = sectionAt < 0 ? 0 : text.indexOf('\n', sectionAt) + 1 || from;
-	let paragraphs = 0;
+	const written: string[] = [];
 	let inParagraph = false;
 	let offset = sectionStart;
 	for (const l of text.slice(sectionStart, from).split('\n')) {
@@ -116,25 +133,28 @@ export function guideAt(text: string, cursor: number, set: PromptSet): Guide | n
 		offset += l.length + 1;
 		if (at >= from) break;
 		if (inExcluded(at) || l.trim() === '' || /^---\s*$/.test(l)) { inParagraph = false; continue; }
-		if (!inParagraph) paragraphs++;
+		if (inParagraph) written[written.length - 1] += `\n${l}`;
+		else written.push(l);
 		inParagraph = true;
 	}
 
 	let options: Prompt[];
-	let index: number;
 	if (heading) {
 		// A heading that is no section: a part of an essay, or one issue of a problem answer.
 		const section = sectionFor(set, heading.text);
 		options = section ? section.prompts : set.body;
-		index = Math.min(paragraphs, options.length - 1);
 	} else {
 		// No heading yet: the opening, then the body.
 		const opening = set.sections.find((s) => (set.kind === 'essay' ? s.aliases.includes('introduction') : s.optional || s.aliases.includes('material facts')));
-		const first = opening?.prompts ?? [];
-		options = [...first, ...set.body];
-		index = paragraphs < first.length ? paragraphs : first.length + Math.min(paragraphs - first.length, set.body.length - 1);
+		options = [...(opening?.prompts ?? []), ...set.body];
 	}
-	if (options.length === 0 || index < 0) return null;
+	if (options.length === 0) return null;
+	// Each paragraph takes the guide after the one the paragraph before it ended in (the last repeats).
+	let index = 0;
+	for (const para of written) {
+		const ended = resolvePosition(options, index, sentencesBefore(`${para} `) - 1).index;
+		index = Math.min(ended + 1, options.length - 1);
+	}
 	return { from, prompt: options[index]!, sentence: sentencesBefore(text.slice(from, cursor)), options, index };
 }
 

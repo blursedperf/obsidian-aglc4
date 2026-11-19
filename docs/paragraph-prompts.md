@@ -14,6 +14,8 @@ A promise is enforceable only if it is supported by consideration. The leading�
 
 When you finish a sentence (a full stop, question mark or exclamation mark, then a space), the next sentence is highlighted. When you start a new paragraph, the guide moves to it, with the guide for the next paragraph of that section.
 
+A paragraph can do the work of more than one guide. When it has more sentences than its guide, the guide carries on into the section's next guide, in the same paragraph. For example, an introduction written as one paragraph goes from the thesis straight on to the roadmap. The paragraph after it then starts with the guide after the one it ended in, so the roadmap is not suggested twice. Only after the section's last guide does it say the structure is complete.
+
 The guides are about **structure**, never content: they suggest what each sentence does, and sometimes how it could start ("The issue is whether …", "As in …", "Unlike …"), but never what to argue. They are drawn by the editor, not written into the note, so they can never end up in your submission, an export, the page preview or the word count. They are fixed text, chosen by where you are in the note: no AI, nothing sent anywhere ([privacy](privacy.md)).
 
 ## When the paragraph needs something else
@@ -44,7 +46,7 @@ The guide expects the usual order, but a paragraph often needs something else: a
   - a transition.
 
   After the last, it comes back to the guide's own sentence. Once you finish that sentence, the guide goes back to its structure. When a paragraph has more sentences than the guide, **⟳** offers these for the next one.
-- **Another paragraph guide:** click **‹** or **›** next to the guide's title (with "2 of 3") to see the section's other paragraph guides. For example, the guide expects *Application: the next element*, but you are writing the other side's argument: press **›** for *Application: the other side*.
+- **Another paragraph guide:** click **‹** or **›** next to the guide's title (with "2 of 3") to see the section's other paragraph guides. The guide you choose starts at its first sentence, for the next sentence you write. For example, the guide expects *Application: the next element*, but you are writing the other side's argument: press **›** for *Application: the other side*.
 
 These choices last while you write that paragraph, and are forgotten when you move to another. They are never saved, and the prompt sets are not changed.
 
@@ -84,7 +86,7 @@ Law schools and lecturers differ: **your lecturer's instructions come first.** I
 
 The guide follows where you are in the note:
 
-- **Under a section's heading** (Issue, Rule, Application, Introduction, Counter-arguments, Conclusion …), the guides for that section's paragraphs, in order; the last repeats. Headings are recognised in any form: numbered (`A. Rule`, `(a) Application`), in bold, or with text after a colon (`Application: the offer`). Common alternatives are recognised too, such as "Law", "Relevant law" or "Analysis". For example, under **Application**:
+- **Under a section's heading** (Issue, Rule, Application, Introduction, Counter-arguments, Conclusion …), the guides for that section's paragraphs, in order; the last repeats. Each paragraph takes the guide after the one the paragraph before it ended in. Headings are recognised in any form: numbered (`A. Rule`, `(a) Application`), in bold, or with text after a colon (`Application: the offer`). Common alternatives are recognised too, such as "Law", "Relevant law" or "Analysis". For example, under **Application**:
   1. *One element applied to the facts:* topic sentence (the element), facts ("Here, …"), comparison with the closest case ("As in …" / "Unlike …"), reasoning, mini-conclusion ("It is therefore likely that …").
   2. *The next element:* the same, with a topic sentence linked to the last.
   3. *The other side:* the other party's best argument ("X may argue that …"), its support, your response, and how strong it is.

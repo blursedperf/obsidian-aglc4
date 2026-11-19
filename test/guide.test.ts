@@ -3,12 +3,14 @@ import { EditorSelection, EditorState } from '@codemirror/state';
 import { type GuideAction, guideAction, guideExtension, shownGuide } from '../src/editor/guide';
 import type { AglcHost } from '../src/editor/extension';
 import { DEFAULT_SETTINGS } from '../src/settings';
-import { IRAC, PROBLEM_ALTERNATIVES } from '../src/prompts/sets';
+import { CRITICAL, IRAC, PROBLEM_ALTERNATIVES, type PromptSet } from '../src/prompts/sets';
 
+/** The prompt set every test editor uses. */
+let set: PromptSet = IRAC;
 const host = {
 	settings: DEFAULT_SETTINGS,
 	forPath: () => ({ enabled: true, settings: DEFAULT_SETTINGS }),
-	promptSet: () => IRAC,
+	promptSet: () => set,
 } as unknown as AglcHost;
 const extension = guideExtension(host);
 
@@ -35,9 +37,10 @@ describe('paragraph guide: changing it for one paragraph', () => {
 		expect(shownGuide(s)!.current).toBe(4);
 		s = act(s, { type: 'sentence', step: -1 }, { type: 'sentence', step: -1 });
 		expect(shownGuide(s)!.current).toBe(2);
-		// Not past either end.
-		expect(shownGuide(act(s, { type: 'sentence', step: -9 }))!.current).toBe(0);
-		expect(shownGuide(act(s, { type: 'sentence', step: 9 }))!.current).toBe(4);
+		// Not before the first; past the guide's last, on into the section's next guides, but not past theirs.
+		expect(shownGuide(act(s, { type: 'sentence', step: -9 }))).toMatchObject({ index: 0, current: 0 });
+		expect(shownGuide(act(s, { type: 'sentence', step: 3 }))).toMatchObject({ index: 1, current: 0 });
+		expect(shownGuide(act(s, { type: 'sentence', step: 99 }))).toMatchObject({ index: 2, current: 3 });
 	});
 
 	it('cycles through the alternatives for the current sentence, then back to the guide', () => {
@@ -63,6 +66,39 @@ describe('paragraph guide: changing it for one paragraph', () => {
 		expect(shownGuide(s)!.current).toBe(5);
 		s = act(s, { type: 'alternative', step: 1 });
 		expect(shownGuide(s)!.alternative!.index).toBe(0);
+	});
+
+	it('carries a paragraph with more sentences than its guide on into the next guide', () => {
+		// An introduction written as one paragraph: context, issue, thesis, then the roadmap.
+		set = CRITICAL;
+		let s = editor('## Introduction\n\nContext. The issue is X. This essay argues Y|');
+		expect(shownGuide(s)).toMatchObject({ index: 0, current: 2 });
+		// The full stop alone does not finish the sentence; the space after it does.
+		s = type(s, '.');
+		expect(shownGuide(s)).toMatchObject({ index: 0, current: 2 });
+		s = type(s, ' ');
+		expect(shownGuide(s)).toMatchObject({ index: 1, current: 0, prompt: { aim: 'Introduction: the roadmap' } });
+		s = type(s, 'Part II examines. Scope. Definitions. ');
+		const g = shownGuide(s)!;
+		expect(g.index).toBe(1);
+		expect(g.current).toBe(3); // past the last guide: "the structure is complete"
+		set = IRAC;
+	});
+
+	it('gives the next paragraph the guide after the one the last paragraph ended in', () => {
+		set = CRITICAL;
+		// The roadmap was written in the first paragraph: the second opens the essay's first part, not the roadmap again.
+		expect(shownGuide(editor('## Introduction\n\nContext. Issue. Thesis. Roadmap.\n\n|'))).toMatchObject({ index: 1 });
+		expect(shownGuide(editor('# Essay\n\nContext. Issue. Thesis. Roadmap.\n\n|'))!.prompt.aim).toBe('Opening a part: what it argues');
+		// A short paragraph still moves on to the next guide.
+		expect(shownGuide(editor('# Essay\n\nThesis.\n\n|'))!.prompt.aim).toBe('Introduction: the roadmap');
+		set = IRAC;
+	});
+
+	it('starts a guide chosen mid-paragraph at its first sentence', () => {
+		const s = act(editor('## Application\n\nThe first question is whether X accepted. Here, X wrote back. |'), { type: 'guide', step: 2 });
+		expect(shownGuide(s)).toMatchObject({ index: 2, current: 0 });
+		expect(shownGuide(type(s, 'X may argue it lapsed. '))).toMatchObject({ index: 2, current: 1 });
 	});
 
 	it('switches to another of the section\'s paragraph guides, and round', () => {
