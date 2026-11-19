@@ -3,7 +3,7 @@
  * of its page, numbered by Word, with italics, quotation marks and URLs exactly as written.
  */
 import {
-	AlignmentType, BorderStyle, Document, ExternalHyperlink, Footer, FootnoteReferenceRun, HeadingLevel, LevelFormat,
+	AlignmentType, BorderStyle, Document, ExternalHyperlink, Footer, FootnoteReferenceRun, HeadingLevel, ImportedXmlComponent, LevelFormat,
 	type IParagraphOptions, Packer, PageNumber, Paragraph, type ParagraphChild, Table, TableCell, TableRow, TextRun, WidthType,
 } from 'docx';
 import type { Block, Inline, MdDocument } from '@legal-core/ldm';
@@ -191,6 +191,14 @@ class DocxBuilder {
 							new TextRun({ text: l, font: 'Courier New' }),
 						]),
 					}));
+					break;
+				case 'ooxml':
+					// Raw Word XML, written as it is. Only in the body: footnotes take ordinary paragraphs.
+					if (!inFootnote) out.push(ImportedXmlComponent.fromXmlString(b.xml) as unknown as Paragraph);
+					else out.push(...this.paragraphs(b.fallback, inFootnote, indent));
+					break;
+				case 'custom':
+					// Turned into ordinary blocks by its extension's renderer before writing; never written itself.
 					break;
 				case 'hr':
 					out.push(this.para({ border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'auto', space: 1 } }, children: [] }));

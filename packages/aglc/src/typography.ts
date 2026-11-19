@@ -29,6 +29,8 @@ export function smartenQuotes(nodes: Inline[], state = { prev: ' ' }): Inline[] 
 			// a footnote marker does not change quote context
 		} else if (n.t === 'fninline') {
 			smartenQuotes(n.c, { prev: ' ' });
+		} else if (n.t === 'custom') {
+			// an extension's node is rendered later, by its extension
 		} else {
 			smartenQuotes(n.c, state);
 		}

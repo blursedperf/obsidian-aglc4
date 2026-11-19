@@ -60,6 +60,8 @@ class HtmlBuilder {
 				case 'quote': return `<blockquote>${this.blocks(b.blocks, inFootnote)}</blockquote>`;
 				case 'code': return `<pre><code>${esc(b.v)}</code></pre>`;
 				case 'hr': return '<hr>';
+				case 'ooxml': return this.blocks(b.fallback, inFootnote);
+				case 'custom': return '';
 				case 'list': {
 					const tag = b.ordered ? 'ol' : 'ul';
 					const start = b.ordered && b.start !== 1 ? ` start="${b.start}"` : '';

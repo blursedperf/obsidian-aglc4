@@ -2,3 +2,4 @@
 export * from './markdown';
 export * from './footnotes';
 export * from './transforms';
+export * from './extensions';

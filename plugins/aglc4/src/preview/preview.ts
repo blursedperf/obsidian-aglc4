@@ -158,6 +158,12 @@ class Builder {
 					this.add(el, this.st.body);
 					break;
 				}
+				case 'ooxml':
+					// Raw Word XML cannot be measured here: its fallback is shown instead.
+					this.build(b.fallback, indent);
+					break;
+				case 'custom':
+					break;
 				case 'hr': {
 					const el = this.para(this.st.body, indent);
 					el.addClass('aglc-pv-hr');

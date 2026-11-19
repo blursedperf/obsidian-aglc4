@@ -174,6 +174,7 @@ export function plainText(nodes: Inline[]): string {
 			case 'br': return '\n';
 			case 'fnref': return '';
 			case 'fninline': return '';
+			case 'custom': return '';
 			default: return plainText(n.c);
 		}
 	}).join('');

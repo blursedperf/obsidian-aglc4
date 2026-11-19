@@ -17,7 +17,9 @@ export type Inline =
 	| { t: 'url'; href: string }
 	| { t: 'fnref'; label: string }
 	| { t: 'fninline'; c: Inline[] }
-	| { t: 'br' };
+	| { t: 'br' }
+	/** A node added by an extension, turned into ordinary nodes by its renderer before writing. */
+	| { t: 'custom'; kind: string; data: unknown };
 
 export type Block =
 	/**
@@ -31,7 +33,15 @@ export type Block =
 	| { t: 'list'; ordered: boolean; start: number; items: Block[][] }
 	| { t: 'code'; lang: string; v: string }
 	| { t: 'hr' }
-	| { t: 'table'; header: Inline[][]; rows: Inline[][][] };
+	| { t: 'table'; header: Inline[][]; rows: Inline[][][] }
+	/** A node added by an extension, turned into ordinary blocks by its renderer before writing. */
+	| { t: 'custom'; kind: string; data: unknown }
+	/**
+	 * Raw Word XML (one or more <w:p> or <w:tbl> elements), written into a Word document as it is: the
+	 * escape hatch for what the model cannot express. Other outputs (HTML, the page preview) show
+	 * `fallback` instead.
+	 */
+	| { t: 'ooxml'; xml: string; fallback: Block[] };
 
 export interface MdDocument {
 	blocks: Block[];
