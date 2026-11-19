@@ -5,7 +5,7 @@
 The preview uses the same fonts, sizes, line spacing and heading style as the [Word export](export.md), including a note's [own style](notes.md#a-notes-own-style) and its [bibliography](bibliography.md), and follows Word's rules:
 
 - a line goes on a page only if it fits completely, with the footnote separator and the footnotes it cites;
-- a long footnote starts on the page of its reference; with **Keep footnotes on one page** on (the default) the line citing it moves to the next page with it, and otherwise it continues at the bottom of the next page;
+- a footnote starts on the page of its reference. With **Keep footnotes on one page** on (the default), a short footnote (up to two lines) that does not fit moves to the next page with the line citing it; a longer one, or any footnote with the setting off, continues at the bottom of the next page;
 - a paragraph split across pages leaves at least two lines on each side (widow and orphan control);
 - headings stay with the paragraph that follows them;
 - the space between paragraphs is the larger of the space after one and the space before the next.

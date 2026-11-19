@@ -142,7 +142,7 @@ export function styles(o: LayoutOptions): Styles {
  * its reference (the line citing it moves to the next page with it). A longer footnote may continue on
  * the next page, as Word does by default, so it does not leave a large gap at the bottom of a page.
  */
-export const KEEP_TOGETHER_MAX_LINES = 3;
+export const KEEP_TOGETHER_MAX_LINES = 2;
 
 /**
  * Average width of a character as a fraction of the font size, for estimating how many lines a footnote

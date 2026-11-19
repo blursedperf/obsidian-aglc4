@@ -79,3 +79,29 @@ describe('HTML export', () => {
 		expect(html).toContain('&lt;<a href="https://example.org">https://example.org</a>&gt;');
 	});
 });
+
+describe('keeping footnotes on one page', () => {
+	it('keeps a footnote of up to two lines whole, and lets a longer one continue on the next page', async () => {
+		const { estimatedFootnoteLines, keepFootnoteTogether, KEEP_TOGETHER_MAX_LINES } = await import('../src/layout/metrics');
+		expect(KEEP_TOGETHER_MAX_LINES).toBe(2);
+		const at10 = { keepFootnotesTogether: true, footnoteSize: 10 };
+		expect(estimatedFootnoteLines(['x'.repeat(80)], 10)).toBe(1);
+		expect(estimatedFootnoteLines(['x'.repeat(170)], 10)).toBe(2);
+		expect(estimatedFootnoteLines(['x'.repeat(200)], 10)).toBe(3);
+		expect(estimatedFootnoteLines(['one', 'two'], 10)).toBe(2);
+		expect(keepFootnoteTogether(['x'.repeat(170)], at10)).toBe(true);
+		expect(keepFootnoteTogether(['x'.repeat(200)], at10)).toBe(false);
+		expect(keepFootnoteTogether(['short'], { ...at10, keepFootnotesTogether: false })).toBe(false);
+		// A larger footnote size fits fewer characters on a line.
+		expect(keepFootnoteTogether(['x'.repeat(170)], { ...at10, footnoteSize: 12 })).toBe(false);
+
+		const url = 'Jane Smith, \'Title of Page\' (Web Page, 1 May 2020) <https://example.org/a/long/address/that/runs/on/to/a/second/line>.';
+		const long = `${'A long discursive footnote, which runs on for several lines. '.repeat(6)}`;
+		const r = await exportDocx(`One.[^1] Two.[^2]\n\n[^1]: ${url}\n[^2]: ${long}\n`, { ...DEFAULT_EXPORT, title: 'T' });
+		const footnotes = await (await JSZip.loadAsync(r.data)).file('word/footnotes.xml')!.async('string');
+		const notes = [...footnotes.matchAll(/<w:footnote w:id="([12])">[\s\S]*?<\/w:footnote>/g)].map((m) => m[0]);
+		expect(notes[0]).toContain('<w:keepLines/>');
+		expect(notes[1]).not.toContain('<w:keepLines/>');
+	});
+});
+

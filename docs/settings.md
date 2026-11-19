@@ -51,7 +51,7 @@ Open **Settings → AGLC4 Citations**. Many style settings can also be set for o
 - **Export folder**: where exports are written; empty to save next to the note ([export](export.md)).
 - **Font**: the font of the Word export and the page preview.
 - **Body text size** and **Footnote text size**: in points.
-- **Keep footnotes on one page**: keep each footnote whole at the bottom of one page.
+- **Keep footnotes on one page**: keep short footnotes (up to two lines) whole at the bottom of one page; longer ones continue on the next page, so they leave no large gap.
 - **Add a bibliography**: end exports and the page preview with a bibliography ([bibliography](bibliography.md)).
 - **Line spacing**: single, 1.5 lines or double.
 - **Typographic quotation marks**: export straight quotes as curly quotes.

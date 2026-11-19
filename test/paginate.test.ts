@@ -70,6 +70,19 @@ describe('pagination', () => {
 		expect(pages[1]!.continued).toBe(false);
 	});
 
+	it('keeps only the footnotes marked to be kept whole, and splits the rest', () => {
+		// The same layout as above, footnote by footnote: kept whole, the reference moves; not, it splits.
+		const kept = paginate([para(10, { refs: [{ line: 5, note: 0 }] })], [{ ...note(14), keepTogether: true }], geo);
+		expect(kept[0]!.notes).toEqual([]);
+		const split = paginate([para(10, { refs: [{ line: 5, note: 0 }] })], [{ ...note(14), keepTogether: false }], { ...geo, keepNotesTogether: true });
+		expect(split[0]!.body).toEqual([{ block: 0, from: 0, to: 6, y: 0 }]);
+		expect(split[0]!.notes[0]!.to).toBeLessThan(14);
+		expect(split[1]!.continued).toBe(true);
+		// A line citing a footnote kept whole and one that is not: the line moves.
+		const mixed = paginate([para(10, { refs: [{ line: 5, note: 0 }, { line: 5, note: 1 }] })], [{ ...note(2), keepTogether: true }, { ...note(14), keepTogether: false }], geo);
+		expect(mixed[0]!.body).toEqual([{ block: 0, from: 0, to: 5, y: 0 }]);
+	});
+
 	it('still splits a footnote too long for any page', () => {
 		const pages = paginate([para(4, { refs: [{ line: 1, note: 0 }] })], [note(30)], { ...geo, keepNotesTogether: true });
 		expect(pages[0]!.notes[0]!.to).toBeLessThan(30);
