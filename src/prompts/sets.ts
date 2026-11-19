@@ -1,14 +1,15 @@
 /**
- * Paragraph prompts: short, faint reminders of what each part of a legal essay or problem answer should
- * do, shown in the editor at an empty paragraph. They are guidance on structure, never content, and are
- * never written into the note.
+ * Paragraph prompts: a guide to what each paragraph of a legal essay or problem answer should do, and
+ * how its sentences can be built, shown in the editor above the paragraph being written. They are
+ * guidance on structure, never content, and are never written into the note.
  *
  * The built-in sets are written from the advice of Australian law schools' writing guides:
  * - Southern Cross University, "IRAC: Structuring legal analysis" (Learning Zone quick guide): IRAC, ILAC;
  * - Monash University Library, "Legal problem solving" (issue, rule, application, conclusion; MIRAT);
  * - ANU Academic Skills, "Writing in Law": HIRAC, and legal essays;
- * - UTS Faculty of Law, "Guide to Written Communication" (2023): introductions, paragraphs, conclusions,
- *   critical analysis, "discuss", and problem questions;
+ * - UTS Faculty of Law, "Guide to Written Communication" (2023): introductions, paragraphs (topic and
+ *   concluding sentences, one point per paragraph), conclusions, critical analysis, "discuss", and
+ *   problem questions;
  * - Tudor and Falconer, "A Guide to Writing for Law School" (La Trobe University, CAUL open textbook).
  * Law schools differ, and lecturers' instructions come first: every set can be copied and edited as a
  * custom set.
@@ -16,13 +17,21 @@
 
 export type PromptKind = 'essay' | 'problem';
 
+/** The guide for one paragraph. */
+export interface Prompt {
+	/** What the paragraph does, eg "Rule: the governing principle and its source". */
+	aim: string;
+	/** Its sentences, in order, each "Role: what it says", eg "Authority: the Act and section …". */
+	sentences: string[];
+}
+
 export interface PromptSection {
 	/** The section's name, used as its heading in a new essay. */
 	name: string;
 	/** Other headings that mean the same section (lower case). */
 	aliases: string[];
-	/** Prompts for the first, second, … empty paragraph in the section; the last repeats. */
-	prompts: string[];
+	/** Guides for the first, second, … paragraph in the section; the last repeats. */
+	prompts: Prompt[];
 	/** Not part of a new essay's outline (eg an optional overview). */
 	optional?: boolean;
 	/** For a problem answer: the section belongs to each issue, not to the answer as a whole. */
@@ -37,12 +46,12 @@ export interface PromptSet {
 	description: string;
 	sections: PromptSection[];
 	/**
-	 * Prompts for paragraphs under a heading that matches no section: in an essay, its body; in a problem
-	 * answer, an issue written without sub-headings (its paragraphs follow the issue's sections in order).
+	 * Guides for paragraphs under a heading that matches no section (the last repeats): in an essay, the
+	 * paragraphs of one of its parts; in a problem answer, an issue written without sub-headings.
 	 */
-	body: string[];
-	/** Prompt for an issue's own heading in a problem answer, if any (HIRAC). */
-	issueHeading?: string;
+	body: Prompt[];
+	/** Guide for an issue's own heading in a problem answer, if any (HIRAC). */
+	issueHeading?: Prompt;
 	/** Where the advice comes from. */
 	sources: string[];
 	/** True for a set defined in a note. */
@@ -51,60 +60,103 @@ export interface PromptSet {
 	path?: string;
 }
 
+const p = (aim: string, ...sentences: string[]): Prompt => ({ aim, sentences });
+
 const SCU = 'Southern Cross University, "IRAC: Structuring legal analysis"';
 const MONASH = 'Monash University Library, "Legal problem solving"';
 const ANU = 'ANU Academic Skills, "Writing in Law"';
 const UTS = 'UTS Faculty of Law, "Guide to Written Communication" (2023)';
 const LATROBE = 'Tudor and Falconer, "A Guide to Writing for Law School"';
 
+// Problem questions
+
 const overview: PromptSection = {
 	name: 'Overview',
 	aliases: ['overview', 'introduction', 'summary of issues', 'issues'],
 	prompts: [
-		'Overview: identify the parties and list the legal issues you will address, in a logical order (liability before remedies).',
+		p('Overview: who you are advising, and the issues, in order',
+			'Client: who you are advising and what they want to know ("X seeks advice on whether …").',
+			'Issues: the legal issues the facts raise, in the order you will deal with them (liability before remedies; each party in turn).',
+			'Answer in brief (optional): your overall conclusion, in one sentence.'),
 	],
 	optional: true,
 };
+
+const issueQuestion = p('Issue: the legal question this issue raises',
+	'Facts: the key facts that raise the issue ("X agreed to …, but then …").',
+	'Question: the issue as a specific legal question for this party ("The issue is whether X is liable in negligence for Y\'s injury"), not "Will the plaintiff win?".',
+	'Area of law: the cause of action, offence or doctrine it falls under, if not obvious.');
 
 const issue: PromptSection = {
 	name: 'Issue',
 	aliases: ['issue', 'the issue', 'legal issue', 'question'],
 	prompts: [
-		'Issue: frame it as a specific legal question for this party, eg "Is X liable in negligence for Y\'s injury?", not "Will the plaintiff win?".',
-		'Break the issue into sub-issues (one for each element) if it has several: each gets its own rule, application and conclusion.',
+		issueQuestion,
+		p('Issue: its sub-issues',
+			'Elements: what the issue turns on ("To succeed, Y must establish …").',
+			'Contested: which elements are clearly met (deal with them briefly) and which are in dispute (each gets its own rule, application and conclusion).'),
 	],
 	perIssue: true,
 };
+
+const rulePrompts = (name: string): Prompt[] => [
+	p(`${name}: the governing principle and its source`,
+		`${name}: the principle in general terms, without the parties' names or facts ("A promise is enforceable only if …").`,
+		'Authority: its source, the Act and section or the leading case, cited in AGLC4 in a footnote.',
+		'Elements: the elements or test it sets out, in the order you will apply them.'),
+	p(`${name}: how the courts apply it`,
+		'Interpretation: how the courts have read or applied the principle ("In [case], the High Court held that …").',
+		'Closest case: the facts and outcome of the case most like this problem, to compare in the application.'),
+	p(`${name}: exceptions, defences and limits`,
+		'Qualification: any exception, defence or limit, with its authority.',
+		'Burden: who must prove it, and to what standard, if it matters.'),
+];
 
 const rule = (name: string): PromptSection => ({
 	name,
 	aliases: ['rule', 'rules', 'law', 'the law', 'relevant law', 'legal rules', 'legal principles'],
-	prompts: [
-		`${name}: state the rule as a general principle, without the parties' facts, with its source: the Act and section, or the case, cited in AGLC4.`,
-		'Set out the elements or test the rule requires: each element is a sub-issue to apply to the facts.',
-		'Add any qualification, exception or defence, with its authority.',
-	],
+	prompts: rulePrompts(name),
 	perIssue: true,
 });
+
+const applyFacts = [
+	'Facts: the facts that bear on it ("Here, X …", "In this case, …").',
+	'Comparison: follow or distinguish the closest case ("As in …", "Unlike …") and say why the similarity or difference matters.',
+	'Reasoning: why the facts satisfy, or fail, the element.',
+	'Mini-conclusion: what this establishes ("It is therefore likely that …").',
+];
+
+const applyElement = p('Application: one element applied to the facts',
+	'Topic sentence: the element this paragraph deals with ("The first question is whether …").',
+	...applyFacts);
+
+const applyNext = p('Application: the next element',
+	'Topic sentence: the next element, linked to the last ("Having established …, the next question is whether …").',
+	...applyFacts);
+
+const applyOtherSide = p('Application: the other side',
+	'Counter-argument: the other party\'s best argument on this point ("X may argue that …").',
+	'Support: the facts or authority it relies on.',
+	'Response: why it is weaker (or stronger) than your argument, with facts or authority.',
+	'Weight: how likely it is to succeed: strong, arguable or weak.');
 
 const application: PromptSection = {
 	name: 'Application',
 	aliases: ['application', 'apply', 'analysis', 'applying the law'],
-	prompts: [
-		'Apply each element of the rule to the material facts: "Here, …", "In this case, …".',
-		'Compare the facts with the cases: follow ("Similar to …") or distinguish ("Unlike …") them, and say why.',
-		'Consider the other party\'s best argument, and how strong it is.',
-		'End the paragraph with the point it establishes for this issue.',
-	],
+	prompts: [applyElement, applyNext, applyOtherSide],
 	perIssue: true,
 };
+
+const issueConclusion = p('Conclusion: the likely outcome on this issue',
+	'Answer: answer the issue\'s question directly ("X is likely to be liable for …").',
+	'Reason: the decisive reason, in a sentence, from your application.',
+	'Uncertainty: what could change the outcome (a disputed fact, an unsettled point of law); do not claim certainty.',
+	'Next: what follows, if anything: a remedy, or the next issue.');
 
 const conclusion: PromptSection = {
 	name: 'Conclusion',
 	aliases: ['conclusion', 'conclusions', 'outcome', 'likely outcome'],
-	prompts: [
-		'Conclusion: state the likely outcome on this issue and the reason for it ("X will likely …"); do not claim certainty.',
-	],
+	prompts: [issueConclusion],
 	perIssue: true,
 };
 
@@ -112,17 +164,15 @@ const overall: PromptSection = {
 	name: 'Overall conclusion',
 	aliases: ['overall conclusion', 'advice', 'summary of advice', 'final conclusion', 'recommendation', 'recommendations'],
 	prompts: [
-		'Bring the issues together: the client\'s overall position, any remedy, and your advice.',
+		p('Overall conclusion: the advice',
+			'Position: the client\'s overall position across the issues ("Overall, X is likely to …").',
+			'Remedies: the remedies, orders or penalties likely to follow.',
+			'Advice: practical next steps: evidence to gather, risks, or options such as settlement.'),
 	],
 };
 
-const problemBody = [
-	'Issue: the specific legal question this issue raises, for this party.',
-	'Rule: the governing principle and its authority (Act and section, or case), cited in AGLC4.',
-	'Application: apply each element to the facts; follow or distinguish the cases; consider the other side.',
-	'Application: the next element, or the other party\'s argument and how strong it is.',
-	'Conclusion: the likely outcome on this issue, and why.',
-];
+/** An issue written under one heading, without sub-headings: IRAC in order. */
+const problemBody = (ruleName: string): Prompt[] => [issueQuestion, rulePrompts(ruleName)[0]!, applyElement, applyOtherSide, issueConclusion];
 
 export const IRAC: PromptSet = {
 	id: 'irac',
@@ -130,7 +180,7 @@ export const IRAC: PromptSet = {
 	kind: 'problem',
 	description: 'Issue, Rule, Application, Conclusion, for each issue.',
 	sections: [overview, issue, rule('Rule'), application, conclusion, overall],
-	body: problemBody,
+	body: problemBody('Rule'),
 	sources: [SCU, MONASH, UTS],
 };
 
@@ -140,7 +190,7 @@ export const ILAC: PromptSet = {
 	name: 'Problem question: ILAC',
 	description: 'Issue, Law, Application, Conclusion: IRAC with "Law" for "Rule".',
 	sections: [overview, issue, rule('Law'), application, conclusion, overall],
-	body: problemBody.map((p) => p.replace(/^Rule:/, 'Law:')),
+	body: problemBody('Law'),
 	sources: [SCU],
 };
 
@@ -149,9 +199,26 @@ export const HIRAC: PromptSet = {
 	id: 'hirac',
 	name: 'Problem question: HIRAC',
 	description: 'A Heading for each issue, then Issue, Rule, Application, Conclusion.',
-	issueHeading: 'Heading: sum up the issue as a short question, eg "Was there a valid acceptance?".',
+	issueHeading: p('Heading: the issue in a few words',
+		'Heading: sum up the issue as a short question, eg "Was there a valid acceptance?" or "Is the employer vicariously liable?".'),
 	sources: [ANU],
 };
+
+const miratFor = p('Arguments: the case for one party',
+	'Topic sentence: the argument this party would make on the element ("Y will argue that …").',
+	'Facts: the facts that support it.',
+	'Authority: the cases or provisions it relies on, followed or distinguished ("As in …", "Unlike …").',
+	'Strength: how persuasive it is, and why.');
+
+const miratAgainst = p('Arguments: the case for the other party',
+	'Topic sentence: the other party\'s argument in reply ("In response, X may argue that …").',
+	'Facts and authority: what supports it.',
+	'Weighing: which argument is stronger, and why.');
+
+const tentative = p('Tentative conclusion: the most likely outcome',
+	'Answer: the most likely outcome on this issue ("It is likely that …").',
+	'Reason: the decisive argument.',
+	'Contingency: the facts or further information that could change it.');
 
 export const MIRAT: PromptSet = {
 	id: 'mirat',
@@ -163,61 +230,52 @@ export const MIRAT: PromptSet = {
 			name: 'Material facts',
 			aliases: ['material facts', 'facts', 'the facts'],
 			prompts: [
-				'Material facts: who, what, when, where and how. Separate the relevant facts from those that are not (yet).',
-				'Note facts that are unclear or missing, and the assumptions you make about them.',
+				p('Material facts: the facts that matter',
+					'Parties: who the parties are, and their relationship.',
+					'Events: what happened, when and where, in order.',
+					'Significance: which facts are legally significant, and why.'),
+				p('Material facts: gaps and assumptions',
+					'Gaps: facts that are unclear or missing.',
+					'Assumptions: the assumptions you make, and how a different fact would change the answer.'),
 			],
 		},
 		{ ...issue, name: 'Issues', aliases: [...issue.aliases, 'issues'] },
-		{
-			...rule('Rules'),
-			aliases: [...rule('Rules').aliases, 'resources', 'rules and resources'],
-		},
+		{ ...rule('Rules'), aliases: [...rule('Rules').aliases, 'resources', 'rules and resources'] },
 		{
 			name: 'Arguments',
 			aliases: ['arguments', 'argument', 'application', 'analysis'],
-			prompts: [
-				'Arguments: apply the rules to the facts, setting out each party\'s argument.',
-				'Follow or distinguish the cases on their facts, and weigh how strong each argument is.',
-			],
+			prompts: [miratFor, miratAgainst],
 			perIssue: true,
 		},
 		{
 			name: 'Tentative conclusion',
 			aliases: ['tentative conclusion', 'conclusion', 'conclusions'],
-			prompts: [
-				'Tentative conclusion: the most likely outcome, and the facts that could change it.',
-			],
+			prompts: [tentative],
 			perIssue: true,
 		},
 		overall,
 	],
-	body: [
-		'Issue: the specific legal question this issue raises.',
-		'Rules: the governing rules and their sources, cited in AGLC4.',
-		'Arguments: each party\'s argument on the rules applied to the facts, and how strong it is.',
-		'Tentative conclusion: the most likely outcome, and what could change it.',
-	],
+	body: [issueQuestion, rulePrompts('Rules')[0]!, miratFor, miratAgainst, tentative],
 	sources: [MONASH],
 };
 
-const essayIntroduction = (first: string): PromptSection => ({
+// Essays
+
+const roadmap = p('Introduction: the roadmap',
+	'Roadmap: the main parts of your argument, in order, usually the strongest first ("Part II examines …; Part III argues …").',
+	'Scope: what the essay covers and leaves out (jurisdiction, area of law; the law as it is, or as it should be).',
+	'Definitions: key terms, if they need defining, and any assumptions.');
+
+const essayIntroduction = (first: Prompt): PromptSection => ({
 	name: 'Introduction',
 	aliases: ['introduction', 'intro'],
-	prompts: [
-		first,
-		'Outline the main points you will make, in the order you will make them (usually the strongest first), so the reader can follow the argument.',
-		'Define key terms, and set the scope: which jurisdiction, and the law as it is or as it should be.',
-	],
+	prompts: [first, roadmap],
 });
 
-const essayConclusion = (first: string): PromptSection => ({
-	name: 'Conclusion',
-	aliases: ['conclusion', 'conclusions', 'concluding remarks'],
-	prompts: [
-		first,
-		'Make sure the conclusion matches what the introduction promised. Add no new arguments or authorities.',
-	],
-});
+const openPart = (link: string): Prompt => p('Opening a part: what it argues',
+	'Topic sentence: the claim this part makes, in a sentence.',
+	`Link: how it advances ${link}.`,
+	'Signpost: the points it covers, in order.');
 
 export const CRITICAL: PromptSet = {
 	id: 'critical',
@@ -225,22 +283,41 @@ export const CRITICAL: PromptSet = {
 	kind: 'essay',
 	description: 'Take a position and argue it: thesis, supported points, counter-arguments, conclusion.',
 	sections: [
-		essayIntroduction('Introduction: identify the issue the question raises, and state your position on it (your thesis) in one or two sentences.'),
+		essayIntroduction(p('Introduction: the issue and your thesis',
+			'Context: why the issue matters (a recent case, reform, or problem in the law).',
+			'Issue: the question the essay answers, in your own words.',
+			'Thesis: your position, in one or two sentences ("This essay argues that …"), not just what the essay will do.')),
 		{
 			name: 'Counter-arguments',
 			aliases: ['counter-arguments', 'counterarguments', 'counter-argument', 'counterargument', 'objections', 'criticisms', 'the other view'],
 			prompts: [
-				'Counter-argument: the strongest view against your thesis, fairly put, with its authority.',
-				'Respond to it: why your position still holds, or what it concedes.',
+				p('Counter-argument: the strongest view against your thesis',
+					'Concession: the opposing view, fairly put ("It may be argued that …").',
+					'Support: who holds it, and its strongest authority.',
+					'Rebuttal: why your position still holds, or what it concedes ("However, …").',
+					'Link: what this means for your thesis.'),
 			],
 		},
-		essayConclusion('Conclusion: restate your thesis in the light of your analysis, and sum up the main arguments.'),
+		{
+			name: 'Conclusion',
+			aliases: ['conclusion', 'conclusions', 'concluding remarks'],
+			prompts: [
+				p('Conclusion: draw the argument together (no new arguments or authorities)',
+					'Thesis: restate your position, in fresh words, in the light of the analysis.',
+					'Synthesis: the main arguments, briefly, and how they fit together.',
+					'Significance: what follows: reform, the future of the law, or open questions.',
+					'Check: it answers what the introduction promised.'),
+			],
+		},
 	],
 	body: [
-		'Topic sentence: the point this paragraph makes for your thesis.',
-		'Support the point with authority (legislation, cases, then commentary), cited in AGLC4.',
-		'Analyse, don\'t describe: why does this authority support your point, and what are its limits?',
-		'Link the paragraph back to your thesis, and lead into the next point.',
+		openPart('your thesis'),
+		p('Body paragraph: one point for your thesis (PEEL)',
+			'Point: the topic sentence, the claim this paragraph makes for your thesis.',
+			'Evidence: the authority for it (legislation, a case, or commentary), cited in a footnote.',
+			'Explanation: analyse, don\'t describe: what the authority shows, why it supports your point, and its limits.',
+			'Further support (optional): a second authority, an example, or the opposing reading and why it fails.',
+			'Link: tie the point back to your thesis, and lead into the next paragraph.'),
 	],
 	sources: [UTS, ANU, LATROBE],
 };
@@ -251,22 +328,41 @@ export const DISCUSS: PromptSet = {
 	kind: 'essay',
 	description: 'Look at both sides, weigh the arguments and reach a conclusion that answers the question.',
 	sections: [
-		essayIntroduction('Introduction: work out what "discuss" asks here (explain, analyse, evaluate or argue), and state the issue and where you will come down.'),
+		essayIntroduction(p('Introduction: the question and where you come down',
+			'Context: why the question matters.',
+			'Task: what "discuss" asks here: explain, analyse, evaluate, or argue for a position. The terms of the question tell you.',
+			'Position: where you come down ("This essay argues that, on balance, …").')),
 		{
 			name: 'Evaluation',
 			aliases: ['evaluation', 'evaluating the arguments', 'weighing the arguments', 'assessment', 'discussion'],
 			prompts: [
-				'Weigh the two sides: which arguments are more persuasive, and why?',
-				'Say where the weight of authority lies, and where the law is unsettled.',
+				p('Evaluation: weigh the two sides',
+					'Criteria: what makes an argument stronger here: authority, principle, policy, or practical effect.',
+					'Weighing: which side is more persuasive against those criteria, and why.',
+					'Unsettled: where the law is unsettled, or the authorities conflict.',
+					'Position: where the weight of argument lies.'),
 			],
 		},
-		essayConclusion('Conclusion: answer the question as asked: where does the weight of argument lie?'),
+		{
+			name: 'Conclusion',
+			aliases: ['conclusion', 'conclusions', 'concluding remarks'],
+			prompts: [
+				p('Conclusion: answer the question (no new arguments or authorities)',
+					'Answer: answer the question as asked: where does the weight of argument lie?',
+					'Reasons: the main reasons, briefly.',
+					'Qualifications: the limits of your answer, or what would change it.',
+					'Significance: what follows, for the law or its reform.'),
+			],
+		},
 	],
 	body: [
-		'Topic sentence: one side of the question, or one aspect of it.',
-		'Support it with authority (legislation, cases, then commentary), cited in AGLC4.',
-		'Now the other side: the strongest arguments and authority against.',
-		'Link the paragraph back to the question.',
+		openPart('your answer to the question'),
+		p('Body paragraph: one side of the question',
+			'Point: the topic sentence, one argument on one side of the question.',
+			'Evidence: the authority for it, cited in a footnote.',
+			'Explanation: what the authority shows, and how strong the argument is.',
+			'Other view: the strongest response from the other side.',
+			'Link: tie it back to the question.'),
 	],
 	sources: [UTS, LATROBE, ANU],
 };

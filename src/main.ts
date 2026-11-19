@@ -6,7 +6,8 @@ import { withBibliography } from './aglc/bibliography';
 import type { Issue } from './aglc/types';
 import { footnoteKeys, remapCrossReferences, scanFootnotes, tidyFootnotes } from './footnotes';
 import { footnoteAt, minimalChange, referenceFor } from './editor/context';
-import { buildExtension, refreshEffect } from './editor/extension';
+import { type AglcHost, buildExtension, refreshEffect } from './editor/extension';
+import { guideExtension } from './editor/guide';
 import { NextElementModal, NextElementSuggest, footnoteTextBeforeCursor } from './editor/suggest';
 import { type ExportOptions, exportDocx } from './export/docx';
 import { exportHtml } from './export/html';
@@ -158,7 +159,7 @@ export default class Aglc4Plugin extends Plugin {
 		this.addSettingTab(new Aglc4SettingTab(this.app, this));
 
 		const getSettings = () => this.settings;
-		this.registerEditorExtension(buildExtension({
+		const host: AglcHost = {
 			get settings() { return getSettings(); },
 			forPath: (path) => this.forPath(path),
 			report: (analysis, next, view) => this.report(analysis, next, view),
@@ -166,7 +167,8 @@ export default class Aglc4Plugin extends Plugin {
 			returnFromFootnote: (view, finished) => this.returnFromFootnote(view, finished),
 			vimMode: () => this.vimMode(),
 			promptSet: (path) => this.promptSetFor(path),
-		}));
+		};
+		this.registerEditorExtension([buildExtension(host), guideExtension(host)]);
 		this.registerEditorSuggest(new NextElementSuggest(this.app, () => this.settings, (file) => this.enabledFor(file)));
 		// A note's properties decide whether the plugin works in it, and its style.
 		this.registerEvent(this.app.metadataCache.on('changed', (file, data, cache) => {

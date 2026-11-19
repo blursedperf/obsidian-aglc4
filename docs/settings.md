@@ -25,7 +25,8 @@ Open **Settings → AGLC4 Citations**. Many style settings can also be set for o
 
 ## Paragraph prompts
 
-- **Show paragraph prompts**: show the faint reminders of what each part of an essay or problem answer should do, in notes with paragraph prompts. Turn off to hide them in every note ([paragraph prompts](paragraph-prompts.md)).
+- **Show paragraph prompts**: in notes with paragraph prompts, show a guide above the paragraph you are writing: what it should do, and how to build its sentences. Turn off to hide it in every note ([paragraph prompts](paragraph-prompts.md)).
+- **Guide shows**: every sentence of the paragraph's structure (the default), or only the sentence you are writing.
 
 ## Footnotes
 

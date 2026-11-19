@@ -38,12 +38,42 @@
 	user-select: none;
 }
 
-/* Paragraph prompts, shown faintly at an empty paragraph; never part of the note */
-.aglc-prompt {
+/* Paragraph guide, shown above the paragraph being written; never part of the note */
+.aglc-guide {
+	margin: 0.4em 0 0.3em;
+	padding: 0.35em 0.7em;
+	border-left: 2px solid var(--background-modifier-border-focus);
 	color: var(--text-faint);
-	font-style: italic;
-	pointer-events: none;
+	font-size: var(--font-ui-small);
+	line-height: 1.4;
 	user-select: none;
+	cursor: default;
+}
+
+.aglc-guide-aim {
+	color: var(--text-muted);
+	font-weight: var(--font-semibold);
+}
+
+.aglc-guide-sentences {
+	margin: 0.2em 0 0;
+	padding-left: 1.6em;
+}
+
+.aglc-guide-sentences li {
+	margin: 0.05em 0;
+}
+
+.aglc-guide-sentences li.is-current {
+	color: var(--text-normal);
+}
+
+.aglc-guide-sentences li.is-current::marker {
+	color: var(--text-accent);
+}
+
+.aglc-guide-role {
+	font-style: italic;
 }
 
 /* AGLC4 heading numbers, shown before headings in the editor */

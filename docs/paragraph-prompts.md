@@ -1,14 +1,22 @@
 # Paragraph prompts
 
-Paragraph prompts are short reminders of what each part of a legal essay or problem answer should do. They appear faintly at an empty paragraph, where you are about to write, and disappear as you type.
+Paragraph prompts guide you through a legal essay or problem answer, one paragraph at a time. Above the paragraph you are writing, a small guide shows what the paragraph should do, and how to build it, sentence by sentence. The sentence you are writing is highlighted, and the guide stays in place while you write the paragraph:
 
 ```
 ## Rule
 
-State the rule as a general principle, without the parties' facts, with its source: …
+┃ Rule: the governing principle and its source
+┃  1. Rule: the principle in general terms, without the parties' names or facts ("A promise is …").
+┃  2. Authority: its source, the Act and section or the leading case, cited in AGLC4 in a footnote.   ← you are here
+┃  3. Elements: the elements or test it sets out, in the order you will apply them.
+A promise is enforceable only if it is supported by consideration. The leading…
 ```
 
-Prompts are guidance on **structure**, never content. They are drawn by the editor, not written into the note, so they can never end up in your submission, an export, the page preview or the word count. They are fixed text, chosen by where you are in the note: no AI, nothing sent anywhere ([privacy](privacy.md)).
+When you finish a sentence (a full stop, question mark or exclamation mark, then a space), the next sentence is highlighted. When you start a new paragraph, the guide moves to it, with the guide for the next paragraph of that section.
+
+The guides are about **structure**, never content: they suggest what each sentence does, and sometimes how it could start ("The issue is whether …", "As in …", "Unlike …"), but never what to argue. They are drawn by the editor, not written into the note, so they can never end up in your submission, an export, the page preview or the word count. They are fixed text, chosen by where you are in the note: no AI, nothing sent anywhere ([privacy](privacy.md)).
+
+To see less, set **Guide shows** to **The current sentence** in [settings](settings.md): the guide then shows the paragraph's aim and only the sentence you are writing.
 
 ## Turning them on for a note
 
@@ -17,7 +25,7 @@ Prompts show only in notes you choose, so nothing changes in your other notes.
 - **For an existing note:** run **Choose paragraph prompts for this note** and pick a kind of essay or answer. This sets the note's property `aglc-prompts` (for example `aglc-prompts: irac`). Choose **No prompts** to remove it.
 - **For a new note:** run **New legal essay or problem answer**, pick the kind, and give it a title. The note is created with its outline as plain headings, and the cursor under the first heading, where the first prompt shows. Rename or delete any heading you don't need.
 
-**Show paragraph prompts** in [settings](settings.md) hides them in every note at once, without changing the notes.
+**Show paragraph prompts** in [settings](settings.md) hides the guide in every note at once, without changing the notes.
 
 ## The kinds of essay and answer
 
@@ -32,24 +40,27 @@ Prompts show only in notes you choose, so nothing changes in your other notes.
 
 Law schools and lecturers differ: **your lecturer's instructions come first.** If your subject uses another method (IPAC, CLEO, or a structure of its own), make a [custom set](#your-own-prompt-sets).
 
-## Where each prompt comes from
+## Which guide shows
 
-The prompts follow where you are in the note:
+The guide follows where you are in the note:
 
-- **Under a section's heading** (Issue, Rule, Application, Introduction, Counter-arguments, Conclusion …), the prompts for that section. Headings are recognised in any form: numbered (`A. Rule`, `(a) Application`), in bold, or with text after a colon (`Application: the offer`). Common alternatives are recognised too, such as "Law", "Relevant law" or "Analysis".
-- **Each paragraph moves to the next prompt** for its section, and the last one repeats. Under Application, for example: apply each element to the facts; then compare with the cases; then the other party's best argument; then end with the point the paragraph establishes.
+- **Under a section's heading** (Issue, Rule, Application, Introduction, Counter-arguments, Conclusion …), the guides for that section's paragraphs, in order; the last repeats. Headings are recognised in any form: numbered (`A. Rule`, `(a) Application`), in bold, or with text after a colon (`Application: the offer`). Common alternatives are recognised too, such as "Law", "Relevant law" or "Analysis". For example, under **Application**:
+  1. *One element applied to the facts:* topic sentence (the element), facts ("Here, …"), comparison with the closest case ("As in …" / "Unlike …"), reasoning, mini-conclusion ("It is therefore likely that …").
+  2. *The next element:* the same, with a topic sentence linked to the last.
+  3. *The other side:* the other party's best argument ("X may argue that …"), its support, your response, and how strong it is.
 - **Under any other heading:**
-  - in an essay, the heading is one of your points, and its paragraphs cycle through a body paragraph's parts: topic sentence, authority, analysis, link back to your thesis (the PEEL pattern: Point, Evidence, Explanation, Link);
+  - in an essay, the heading is one of its parts: its first paragraph opens the part (its claim, how it advances your thesis, the points it covers), and the rest are body paragraphs built on **PEEL**: Point (the topic sentence), Evidence (authority, in a footnote), Explanation (analysis, not description), further support if needed, and a Link back to your thesis;
   - in a problem answer, the heading is an issue, and its paragraphs follow IRAC in order, for an issue written without sub-headings.
-- **Before the first heading** (or under the note's title): the introduction or overview, then body paragraphs.
-- **Never** in footnotes, code, comments or properties, or on a line that has text.
+- **Before the first heading** (or under the note's title): the introduction (in an essay, the issue and your thesis, then the roadmap) or the overview, then body paragraphs.
+- **In HIRAC**, while you write an issue's heading: how to put it as a short question.
+- **Never** in footnotes, code, comments, properties, lists, quotations or tables.
 
 ## Your own prompt sets
 
 To follow your subject's or lecturer's structure, make your own set:
 
 1. Run **Copy a prompt set to edit as your own**, pick the set closest to what you need, and name it. A note called `Prompts - <name>` opens, with every section and prompt of the set.
-2. Edit it. Each `##` heading is a section, and its list items are its prompts, in order:
+2. Edit it. Each `##` heading is a section. Each list item is the guide for one paragraph of the section (the first, second, … paragraph; the last repeats), and the items indented under it are its sentences, in order:
 
    ```markdown
    ---
@@ -59,29 +70,36 @@ To follow your subject's or lecturer's structure, make your own set:
 
    ## Issue (each issue)
 
-   - State the issue as a question.
+   - Issue: the question the facts raise
+   	- Facts: the key facts.
+   	- Question: the issue, as a question.
 
    ## Principle | Law | Rule (each issue)
 
-   - State the principle, with its authority.
+   - Principle: the law and its source
+   	- Principle: the rule in general terms.
+   	- Authority: the Act and section, or the case.
 
    ## Body
 
-   - The prompts for paragraphs under any other heading.
+   - The guide for paragraphs under any other heading
+   	- Point: …
    ```
 
+   - **Sentences** are written "Role: what it says"; the role is shown in italics.
    - **Alternative headings** for a section follow `|`. The first is the one used in a new outline.
    - **(each issue)** marks a section that belongs to each issue of a problem answer.
    - **(optional)** leaves a section out of a new outline.
-   - **Body** holds the prompts for paragraphs under any other heading.
+   - **Body** holds the guides for paragraphs under any other heading, and **Issue heading** the guide for an issue's heading (as in HIRAC).
    - `aglc-prompt-kind` is `essay` or `problem`.
+   - Sets made with 1.11.0 still work: their list items become paragraph guides without sentences.
 3. Use it: run **Choose paragraph prompts for this note** or **New legal essay or problem answer**: your set is listed with the built-in ones. Its property value is its name, for example `aglc-prompts: "Contracts IPAC"`.
 
 Changes to the set's note apply as soon as you save. A set can live in any folder. Text other than headings and list items is ignored, so you can keep notes about the set in it.
 
 ## Sources
 
-The built-in prompts are written from the advice of these Australian law schools' writing guides:
+The built-in guides are written from the advice of these Australian law schools' writing guides:
 
 - Southern Cross University, Learning Zone, *IRAC: Structuring legal analysis* (quick guide): IRAC and ILAC; framing the issue as a question, stating the rule with AGLC4 citations, "In this case …", "Similar to …" / "Unlike …", stating the likely outcome.
 - Monash University Library, *Legal problem solving*: specific issues ("not *Will the plaintiff win?*"), rules as general principles broken into elements, application as the longest part, with both sides and their strength, and hedged conclusions; MIRAT.

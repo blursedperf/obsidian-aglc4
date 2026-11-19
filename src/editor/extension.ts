@@ -1,6 +1,6 @@
 /**
  * CodeMirror extension: underlines AGLC4 problems in footnotes, shows the next required element after
- * the cursor, shows paragraph prompts at an empty paragraph, explains problems on hover with one-click fixes, and keeps "(n X)" cross-references
+ * the cursor, explains problems on hover with one-click fixes, and keeps "(n X)" cross-references
  * pointing at the right footnotes.
  */
 import { type Extension, Prec, StateEffect, type Text } from '@codemirror/state';
@@ -11,7 +11,6 @@ import { type DocumentAnalysis, analyseDocument } from '../aglc/document';
 import type { Issue } from '../aglc/types';
 import { excludedRanges, footnoteKeys, remapCrossReferences, scanFootnotes, type FootnoteScan } from '../footnotes';
 import { type TopLevel, backMatterIndex, hasTypedNumber, numberHeadings } from '../layout/headings';
-import { promptAt } from '../prompts/engine';
 import type { PromptSet } from '../prompts/sets';
 import type { Aglc4Settings } from '../settings';
 import { atFinishedFootnote, footnoteAt, minimalChange, referenceFor } from './context';
@@ -44,16 +43,6 @@ class HintWidget extends WidgetType {
 		const el = createSpan({ cls: 'aglc-hint', text: `‹${this.label}›` });
 		el.setAttribute('aria-label', this.hint);
 		return el;
-	}
-	ignoreEvent(): boolean { return true; }
-}
-
-/** A paragraph prompt: faint guidance at an empty paragraph, never part of the note. */
-class PromptWidget extends WidgetType {
-	constructor(readonly text: string) { super(); }
-	eq(other: PromptWidget): boolean { return other.text === this.text; }
-	toDOM(): HTMLElement {
-		return createSpan({ cls: 'aglc-prompt', text: this.text });
 	}
 	ignoreEvent(): boolean { return true; }
 }
@@ -191,11 +180,6 @@ export function buildExtension(host: AglcHost): Extension {
 						}
 					}
 				}
-			}
-			if (!ctx && state.selection.main.empty && this.view.hasFocus) {
-				const set = host.promptSet(this.currentPath());
-				const prompt = set ? promptAt(text, cursor, set) : null;
-				if (prompt) ranges.push(Decoration.widget({ widget: new PromptWidget(prompt), side: 1 }).range(cursor));
 			}
 			if (s.headingScheme === 'aglc') {
 				for (const h of headingNumbers(text, s.aglcTopLevel)) {

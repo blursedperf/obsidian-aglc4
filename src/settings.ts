@@ -8,6 +8,7 @@ export interface Aglc4Settings {
 	showInfo: boolean;
 	ghostHint: boolean;
 	paragraphPrompts: boolean;
+	promptDetail: 'full' | 'current';
 	autoSuggest: boolean;
 	statusBar: boolean;
 	tidyOnLeave: boolean;
@@ -44,6 +45,7 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	showInfo: true,
 	ghostHint: true,
 	paragraphPrompts: true,
+	promptDetail: 'full',
 	autoSuggest: true,
 	statusBar: true,
 	tidyOnLeave: true,
@@ -126,7 +128,8 @@ export const GROUPS: Group[] = [
 	{
 		heading: 'Paragraph prompts',
 		items: [
-			{ name: 'Show paragraph prompts', desc: 'In a note with paragraph prompts (run "Choose paragraph prompts for this note", or "New legal essay"), show a faint reminder at an empty paragraph of what that part of the essay or answer should do: IRAC, ILAC, HIRAC or MIRAT for problem questions, or a critical analysis or "discuss" essay. Prompts are never written into the note. Turn off to hide them in every note.', control: { type: 'toggle', key: 'paragraphPrompts' } },
+			{ name: 'Show paragraph prompts', desc: 'In a note with paragraph prompts (run "Choose paragraph prompts for this note", or "New legal essay or problem answer"), show a guide above the paragraph you are writing: what that paragraph of the essay or answer should do, and how to build its sentences, with the sentence you are on highlighted. It stays while you write the paragraph. IRAC, ILAC, HIRAC or MIRAT for problem questions, or a critical analysis or "discuss" essay. The guide is never written into the note. Turn off to hide it in every note.', control: { type: 'toggle', key: 'paragraphPrompts' } },
+			{ name: 'Guide shows', desc: 'Every sentence of the paragraph\'s structure, or only the sentence you are writing.', control: { type: 'dropdown', key: 'promptDetail', options: { full: 'Every sentence', current: 'The current sentence' } } },
 		],
 	},
 	{

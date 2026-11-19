@@ -10,7 +10,7 @@ Write footnoted legal work in Obsidian to the *Australian Guide to Legal Citatio
 - **exports to Word with real footnotes** at the bottom of each page, with AGLC4 headings and a bibliography, and shows the pages in a **page preview** first;
 - **imports Word documents** with their footnotes;
 - **keeps a version history** of your notes, so any earlier version, deleted note or overwritten export can be restored;
-- **prompts each paragraph** of an essay or problem answer, if you want: IRAC, ILAC, HIRAC or MIRAT for problem questions, critical analysis or "discuss" essays, or your own structure, written from Australian law schools' writing guides;
+- **guides each paragraph** of an essay or problem answer, if you want: what it should do and how to build it, sentence by sentence, for IRAC, ILAC, HIRAC or MIRAT problem questions, critical analysis or "discuss" essays, or your own structure, written from Australian law schools' writing guides;
 - **can be limited to your assignments**, leaving your other notes alone, with each assignment's own style in its properties.
 
 **Try it straight away:** run **Create example essay** from the command palette. It adds a short, correctly cited essay to your vault, with a tour of what to try and some citations with mistakes to fix.
