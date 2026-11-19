@@ -33,4 +33,23 @@ export default defineConfig(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		// Packages and plugins must run on mobile: no Node APIs. And a package is used only through its
+		// public entry point (its index.ts), never its internal files.
+		files: ['packages/*/src/**/*.ts', 'plugins/*/src/**/*.ts'],
+		rules: {
+			'no-restricted-imports': ['error', {
+				patterns: [
+					{ regex: '^node:', message: 'Node APIs are not available on mobile.' },
+					{ regex: '^(fs|path|os|child_process|crypto|buffer|stream|util|url|http|https|net)(/|$)', message: 'Node APIs are not available on mobile.' },
+					{ regex: '^@legal-core/[^/]+/', message: 'Import a package through its entry point: @legal-core/<name>.' },
+				],
+			}],
+			'no-restricted-globals': ['error',
+				{ name: 'Buffer', message: 'Buffer is a Node API: use Uint8Array.' },
+				{ name: 'process', message: 'process is a Node API.' },
+				{ name: 'require', message: 'Use import.' },
+			],
+		},
+	},
 );
