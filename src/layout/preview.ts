@@ -256,7 +256,9 @@ export async function layoutNote(markdown: string, opts: ExportOptions, host: HT
 		// fonts API unavailable: measure with what is loaded
 	}
 
-	const pblocks: PBlock[] = b.blocks.map((it) => {
+	const pblocks: PBlock[] = b.blocks.map((it, i) => {
+		// The first paragraph after a heading has no widow and orphan control, as in the Word export.
+		const afterHeading = i > 0 && b.blocks[i - 1]!.style.keepNext === true && !it.style.keepNext;
 		const rect = it.el.getBoundingClientRect();
 		if (it.atomic) {
 			it.lh = rect.height / PX;
@@ -265,7 +267,7 @@ export async function layoutNote(markdown: string, opts: ExportOptions, host: HT
 		const lhPx = it.lh * PX;
 		const lines = Math.max(1, Math.round(rect.height / lhPx));
 		const refs = refsIn(it.el, rect.top, lhPx);
-		return { lines, lineHeight: it.lh, spaceBefore: it.style.before, spaceAfter: it.style.after, keepNext: it.style.keepNext, keepLines: it.style.keepLines, pageBreakBefore: it.pageBreak, refs };
+		return { lines, lineHeight: it.lh, spaceBefore: it.style.before, spaceAfter: it.style.after, keepNext: it.style.keepNext, keepLines: it.style.keepLines, pageBreakBefore: it.pageBreak, refs, ...(afterHeading ? { widowControl: false } : {}) };
 	});
 	const pnotes: PNote[] = b.notes.map((it) => ({
 		lines: Math.max(1, Math.round(it.el.getBoundingClientRect().height / (it.lh * PX))),

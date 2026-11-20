@@ -204,6 +204,7 @@ class DocxBuilder {
 		// paragraphs but the last kept with the next. The last is not, or every footnote would be chained to
 		// the one after it. A long footnote may continue on the next page.
 		const keep = keepFootnoteTogether(footnoteParagraphs(content), this.opts);
+		this.footnoteDepth++;
 		const head = keep ? blocks.slice(0, -1) : blocks;
 		this.keepLines = keep;
 		this.keepNext = keep;
@@ -211,6 +212,7 @@ class DocxBuilder {
 		this.keepNext = false;
 		if (keep && blocks.length > 0) children.push(...this.paragraphs(blocks.slice(-1), true));
 		this.keepLines = false;
+		this.footnoteDepth--;
 		this.footnotes[id] = { children: children.filter((p): p is Paragraph => p instanceof Paragraph) };
 		return new FootnoteReferenceRun(id);
 	}
@@ -224,9 +226,25 @@ class DocxBuilder {
 	/** Set while building the paragraphs of a footnote kept whole on one page. */
 	private keepLines = false;
 
-	/** A paragraph with widow and orphan control, which Word leaves off unless asked. */
+	/** Set after a heading in the text: the next paragraph has no widow and orphan control. */
+	private afterHeading = false;
+
+	/** Footnotes being built (their paragraphs are built in the middle of the text's paragraph). */
+	private footnoteDepth = 0;
+
+	/**
+	 * A paragraph with widow and orphan control, which Word leaves off unless asked. The first paragraph
+	 * after a heading has it off, so a heading near the bottom of a page stays there with one line of its
+	 * paragraph rather than moving to the next page with two, which leaves a large gap. This is Word's own
+	 * per-paragraph setting (Paragraph, Line and Page Breaks, Widow/Orphan control).
+	 */
 	private para(opts: IParagraphOptions): Paragraph {
-		return new Paragraph({ widowControl: true, ...(this.keepNext ? { keepNext: true } : {}), ...(this.keepLines ? { keepLines: true } : {}), ...opts });
+		let widowControl = true;
+		if (this.footnoteDepth === 0 && !opts.heading && this.afterHeading) {
+			widowControl = false;
+			this.afterHeading = false;
+		}
+		return new Paragraph({ widowControl, ...(this.keepNext ? { keepNext: true } : {}), ...(this.keepLines ? { keepLines: true } : {}), ...opts });
 	}
 
 	paragraphs(blocks: Block[], inFootnote = false, indent = 0): (Paragraph | Table)[] {
@@ -241,6 +259,7 @@ class DocxBuilder {
 						children.unshift(new TextRun({ text: b.number + NUMBER_SPACE, italics: upright ? false : undefined }));
 					}
 					out.push(this.para({ heading: b.title ? HeadingLevel.TITLE : HEADINGS[level - 1], children, pageBreakBefore: b.pageBreak || undefined }));
+					if (!inFootnote) this.afterHeading = true;
 					break;
 				}
 				case 'para':

@@ -40,6 +40,24 @@ describe('markdown inline parsing', () => {
 });
 
 describe('Word export', () => {
+	it('turns off widow and orphan control for the first paragraph after a heading only', async () => {
+		const md = '## Part one\n\nFirst after the heading.[^1]\n\nSecond paragraph.\n\n### A sub-part\n\n## Part two\n\nFirst after two headings.\n\n[^1]: A footnote.\n';
+		const r = await exportDocx(md, DEFAULT_EXPORT);
+		const zip = await JSZip.loadAsync(r.data);
+		const document = await zip.file('word/document.xml')!.async('string');
+		const paras = [...document.matchAll(/<w:p>([\s\S]*?)<\/w:p>/g)].map((m) => m[1]!);
+		const widow = (text: string) => {
+			const p = paras.find((x) => x.includes(text))!;
+			return /<w:widowControl\/>|<w:widowControl w:val="(?:true|1|on)"\/>/.test(p) ? 'on' : 'off';
+		};
+		expect(widow('First after the heading.')).toBe('off');
+		expect(widow('Second paragraph.')).toBe('on');
+		expect(widow('First after two headings.')).toBe('off');
+		// Footnotes keep it on: their paragraphs are built inside the text's first paragraph.
+		const footnotes = await zip.file('word/footnotes.xml')!.async('string');
+		expect(footnotes.match(/<w:p>[\s\S]*?A footnote\.[\s\S]*?<\/w:p>/)![0]).toMatch(/<w:widowControl\/>/);
+	});
+
 	it('creates real footnotes with formatting', async () => {
 		const r = await exportDocx(NOTE, { ...DEFAULT_EXPORT, title: 'Test' });
 		expect(r.footnotes).toBe(2);

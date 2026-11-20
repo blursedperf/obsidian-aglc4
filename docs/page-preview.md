@@ -7,7 +7,7 @@ The preview uses the same fonts, sizes, line spacing and heading style as the [W
 - a line goes on a page only if it fits completely, with the footnote separator and the footnotes it cites;
 - a footnote starts on the page of its reference. With **Keep footnotes on one page** on (the default), a short footnote (up to two lines) that does not fit moves to the next page with the line citing it; a longer one, or any footnote with the setting off, continues at the bottom of the next page;
 - a paragraph split across pages leaves at least two lines on each side (widow and orphan control);
-- headings stay with the paragraph that follows them;
+- headings stay with the paragraph that follows them. A heading near the bottom of a page needs only the first line of its paragraph under it, so it stays on the page rather than moving to the next with two lines and leaving a gap. To allow this, the first paragraph after a heading has widow and orphan control off. That is Word's own setting for the paragraph (**Paragraph → Line and Page Breaks → Widow/Orphan control**), so Word lays the export out the same way;
 - the space between paragraphs is the larger of the space after one and the space before the next.
 
 ## How accurate it is

@@ -41,6 +41,15 @@ describe('pagination', () => {
 		expect(layout([para(8), heading, para(4)])).toEqual([[[0, 0, 8]], [[1, 0, 1], [2, 0, 4]]]);
 	});
 
+	it('keeps a heading with one line of a paragraph that has widow control off (as after a heading)', () => {
+		const heading = para(1, { keepNext: true, keepLines: true });
+		// Room for the heading and one line: with widow control, the heading moves; without, it stays.
+		expect(layout([para(8), heading, para(4)])).toEqual([[[0, 0, 8]], [[1, 0, 1], [2, 0, 4]]]);
+		expect(layout([para(8), heading, para(4, { widowControl: false })])).toEqual([[[0, 0, 8], [1, 0, 1], [2, 0, 1]], [[2, 1, 4]]]);
+		// Without widow control, a single last line may also go to the next page (Word does the same).
+		expect(layout([para(7), heading, para(3, { widowControl: false })])).toEqual([[[0, 0, 7], [1, 0, 1], [2, 0, 2]], [[2, 2, 3]]]);
+	});
+
 	it('places a footnote on the page of its reference, with the separator', () => {
 		// Line 6 cites a 4-line footnote: 7 lines (70) + separator (10) + 20 = 100 fits; line 8 then cannot.
 		const pages = paginate([para(10, { refs: [{ line: 6, note: 0 }] })], [note(4)], geo);

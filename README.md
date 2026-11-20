@@ -15,7 +15,7 @@ Write footnoted legal work in Obsidian to the *Australian Guide to Legal Citatio
 - **guides each paragraph** of an essay or problem answer, if you want: what it should do and how to build it, sentence by sentence, for IRAC, ILAC, HIRAC or MIRAT problem questions, critical analysis or "discuss" essays, or your own structure, written from Australian law schools' writing guides;
 - **can be limited to your assignments**, leaving your other notes alone, with each assignment's own style in its properties.
 
-**Try it straight away:** run **Create example essay** from the command palette. It adds a short, correctly cited essay to your vault, with a tour of what to try and some citations with mistakes to fix.
+**Try it straight away:** run **Create example essay** from the command palette. It adds a five-page critical essay to your vault. The essay is correctly cited, with a wide range of sources and all four AGLC4 heading levels. It comes with a tour of what to try, paragraph guides, and some citations with mistakes to fix.
 
 ## User guide
 

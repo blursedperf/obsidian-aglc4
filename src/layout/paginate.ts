@@ -8,7 +8,9 @@
  * - a footnote must start on the page of its reference; if it does not fit, as many of its lines as fit
  *   are placed and the rest continue at the top of the next page's footnotes, ahead of new footnotes
  *   (unless footnotes are kept together, when the citing line moves to the next page instead);
- * - widow and orphan control: a paragraph split across pages leaves at least two lines on each side;
+ * - widow and orphan control: a paragraph split across pages leaves at least two lines on each side,
+ *   unless the paragraph turns it off (Word's per-paragraph setting; used for the first paragraph after
+ *   a heading, so a heading can end a page with one line of its paragraph);
  * - headings are kept with the next paragraph and not split.
  *
  * Space before a paragraph at the top of a page after an automatic break is suppressed, except on the
@@ -24,6 +26,8 @@ export interface PBlock {
 	spaceAfter: number;
 	keepNext?: boolean;
 	keepLines?: boolean;
+	/** Widow and orphan control for this block; false turns it off (Word's per-paragraph setting). */
+	widowControl?: boolean;
 	/** Start a new page before this block (Word: "Page break before"). */
 	pageBreakBefore?: boolean;
 	/** Footnotes cited, by the line they are cited on (0-based) and the footnote's index. */
@@ -100,7 +104,8 @@ function clone(s: State): State {
 export function paginate(blocks: PBlock[], notes: PNote[], geo: Geometry): Page[] {
 	const H = geo.contentHeight;
 	const sep = geo.separator;
-	const widow = geo.widowControl !== false;
+	const widowOn = geo.widowControl !== false;
+	const widowFor = (b: PBlock) => widowOn && b.widowControl !== false;
 	const keepNotes = geo.keepNotesTogether === true;
 	/** A footnote that cannot fit on a page even with only its citing line above it. */
 	const tooLong = (n: number, lineHeight: number) => notes[n]!.lines * notes[n]!.lineHeight > H - sep - lineHeight + EPS;
@@ -214,7 +219,7 @@ export function paginate(blocks: PBlock[], notes: PNote[], geo: Geometry): Page[
 		for (;;) {
 			const b = blocks[j];
 			if (!b) return true;
-			const need = b.keepNext || b.keepLines ? b.lines : Math.min(b.lines, widow ? 2 : 1);
+			const need = b.keepNext || b.keepLines ? b.lines : Math.min(b.lines, widowFor(b) ? 2 : 1);
 			const gap = gapFor(t, b);
 			for (let l = 0; l < need; l++) {
 				if (!placeLine(t, b, j, l, l === 0 ? gap : 0, false)) return false;
@@ -255,7 +260,7 @@ export function paginate(blocks: PBlock[], notes: PNote[], geo: Geometry): Page[
 			}
 			// The block breaks here. Apply widow and orphan control.
 			let k = line;
-			if (widow && b.lines > 1 && !(b.keepLines && start === 0)) {
+			if (widowFor(b) && b.lines > 1 && !(b.keepLines && start === 0)) {
 				if (b.lines - k === 1 && k - start >= 2) k--;
 				if (start === 0 && k - start === 1) k = start;
 			}
