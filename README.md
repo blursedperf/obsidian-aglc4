@@ -1,6 +1,8 @@
 # AGLC4 Citations for Obsidian
 
-If you like it, [shout me a third of a coffee](https://patreon.com/Blursedperf)...or don't, no presh.
+[![Buy me a coffee](https://img.shields.io/badge/Buy_me_a_coffee-lawfair-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/lawfair)
+
+If it saves you some footnote pain, **[buy me a coffee](https://buymeacoffee.com/lawfair)**...or don't, no presh. If you'd rather chip in a third of a coffee every month, I'm on [Patreon](https://patreon.com/Blursedperf) too.
 
 Write footnoted legal work in Obsidian to the *Australian Guide to Legal Citation* (4th ed). The plugin:
 
