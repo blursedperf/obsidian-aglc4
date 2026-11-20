@@ -135,6 +135,24 @@ describe('suggests the next element', () => {
 		expect(labels).toContain('Pinpoint');
 		expect(labels).toContain('End footnote');
 	});
+	it('ibid: no required element, only its optional pinpoint and judge, and never an article title', () => {
+		const labels = (t: string) => suggestNext(t).map((s) => s.label);
+		for (const t of ['Ibid', 'Ibid ', 'See ibid']) {
+			expect([t, next(t)]).toEqual([t, undefined]);
+			expect(labels(t)).not.toContain('Article title');
+			expect(labels(t)[0]).toBe('Pinpoint');
+		}
+		expect(labels('Ibid')).toEqual(['Pinpoint', 'Judicial officer', 'End footnote', 'Another source']);
+		expect(labels('Ibid 45')).toEqual(['Judicial officer', 'End footnote', 'Another source']);
+	});
+	it('nothing once a footnote is finished with its full stop', () => {
+		for (const t of ['Ibid.', 'ibid.', 'Ibid. ', 'Ibid 45.', 'Ibid [12].', '*Mabo* (n 1) 42.', '*Mabo v Queensland [No 2]* (1992) 175 CLR 1. ']) {
+			expect([t, suggestNext(t)]).toEqual([t, []]);
+		}
+	});
+	it('still reads a name as an author when nothing identifies another kind of source', () => {
+		expect(next('Ibidem Smith')).toBe('Article title');
+	});
 	it('offers source types at the start', () => {
 		expect(suggestNext('').length).toBeGreaterThan(5);
 		expect(suggestNext('See ').map((s) => s.insert)).toContain('ibid');

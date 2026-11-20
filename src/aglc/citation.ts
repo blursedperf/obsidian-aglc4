@@ -342,7 +342,8 @@ export function suggestNext(before: string): Suggestion[] {
 		if (sig || raw.length === 0) return startSuggestions(!!sig);
 		return [];
 	}
-	if (/[.]$/.test(body) && !/\b(?:Ibid|ibid)\.$/.test(body)) return [];
+	// A citation ending in its closing full stop is finished, "Ibid." included; after it, a new sentence.
+	if (/[.]\s*$/.test(body)) return [];
 
 	const ranked = rankMatches(body, !!sig);
 	const viable = ranked.filter((r) => {
@@ -355,7 +356,11 @@ export function suggestNext(before: string): Suggestion[] {
 	const pool = exact.length > 0 ? exact : viable;
 	const top = Math.max(...pool.map((r) => r.elements.length));
 	// Every kind of citation the text so far fits completely, most complete first; otherwise the best partial.
-	const chosen = (exact.length > 0 ? exact : pool.filter((r) => r.claimed || r.elements.length === top)).slice(0, 6);
+	// Once the text has an element that identifies its kind (eg "Ibid", or "(n" of a later reference), only
+	// the kinds it identifies: "Ibid" is not also the author of an article.
+	const candidates = exact.length > 0 ? exact : pool.filter((r) => r.claimed || r.elements.length === top);
+	const claimed = candidates.filter((r) => r.claimed);
+	const chosen = (claimed.length > 0 ? claimed : candidates).slice(0, 6);
 
 	const out: Suggestion[] = [];
 	const seen = new Set<string>();
