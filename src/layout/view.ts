@@ -1,7 +1,7 @@
 import { ItemView, MarkdownView, type TFile, type WorkspaceLeaf, debounce, setIcon } from 'obsidian';
 import type { ExportOptions } from '../export/docx';
 import { PAGE } from './metrics';
-import { layoutNote, renderPages } from './preview';
+import { NotLaidOutError, layoutNote, renderPages } from './preview';
 
 export const PAGE_PREVIEW_VIEW = 'aglc4-page-preview';
 
@@ -23,6 +23,8 @@ export class PagePreviewView extends ItemView {
 	private infoEl!: HTMLElement;
 	private generation = 0;
 	private readonly refresh = debounce(() => { void this.render(); }, 500, true);
+	/** Watches for the pane to be laid out, when a render had to wait for it. */
+	private waiting: ResizeObserver | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private host: PreviewHost) {
 		super(leaf);
@@ -67,6 +69,8 @@ export class PagePreviewView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this.refresh.cancel();
+		this.waiting?.disconnect();
+		this.waiting = null;
 		this.contentEl.empty();
 	}
 
@@ -97,8 +101,17 @@ export class PagePreviewView extends ItemView {
 			if (text === null && leaf.view instanceof MarkdownView && leaf.view.file === file) text = leaf.view.editor.getValue();
 		});
 		const markdown = text ?? await this.app.vault.cachedRead(file);
-		const layout = await layoutNote(markdown, this.host.exportOptions(file), this.measureEl);
+		let layout;
+		try {
+			layout = await layoutNote(markdown, this.host.exportOptions(file), this.measureEl);
+		} catch (e) {
+			if (!(e instanceof NotLaidOutError)) throw e;
+			// The pane is hidden or still opening: draw the pages once it has a size.
+			if (gen === this.generation) this.renderWhenLaidOut();
+			return;
+		}
 		if (gen !== this.generation) return;
+		this.retries = 5;
 
 		const scroller = this.pagesEl.parentElement!;
 		const ratio = scroller.scrollHeight > 0 ? scroller.scrollTop / scroller.scrollHeight : 0;
@@ -108,6 +121,32 @@ export class PagePreviewView extends ItemView {
 		this.applyZoom();
 		scroller.scrollTop = ratio * scroller.scrollHeight;
 		(this.leaf as unknown as { updateHeader?: () => void }).updateHeader?.();
+	}
+
+	/** Retries left for a pane that has a size but could not be measured yet. */
+	private retries = 5;
+
+	/** Render again as soon as the pane is laid out (it is hidden, or was still opening). */
+	private renderWhenLaidOut() {
+		if (this.waiting) return;
+		this.infoEl.setText('Preparing pages…');
+		const sized = () => this.contentEl.clientWidth > 0 && this.contentEl.clientHeight > 0;
+		if (sized() && this.retries > 0) {
+			// Sized but not measurable yet (still opening): try again on the next frames, a few times.
+			this.retries--;
+			window.requestAnimationFrame(() => { void this.render(); });
+			return;
+		}
+		// Hidden: wait until the pane gets a new size.
+		const from = `${this.contentEl.clientWidth}x${this.contentEl.clientHeight}`;
+		this.waiting = new ResizeObserver(() => {
+			if (!sized() || `${this.contentEl.clientWidth}x${this.contentEl.clientHeight}` === from) return;
+			this.waiting?.disconnect();
+			this.waiting = null;
+			this.retries = 5;
+			void this.render();
+		});
+		this.waiting.observe(this.contentEl);
 	}
 
 	private currentScale(): number {

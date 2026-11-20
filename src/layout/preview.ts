@@ -237,8 +237,16 @@ function flattenParas(blocks: Block[]): Inline[][] {
 }
 
 /**
+ * Thrown by layoutNote when the paragraphs cannot be measured because the measuring area is not laid
+ * out yet (its pane is hidden or still opening): every paragraph would measure 0 high.
+ */
+export class NotLaidOutError extends Error {
+	constructor() { super('The page preview is not laid out yet'); }
+}
+
+/**
  * Lay out a note. `host` must be attached to the document: paragraphs are measured inside it and removed
- * again afterwards.
+ * again afterwards. Throws NotLaidOutError if it is not laid out yet.
  */
 export async function layoutNote(markdown: string, opts: ExportOptions, host: HTMLElement): Promise<PreviewLayout> {
 	const doc = prepare(parseMarkdown(markdown), opts, markdown);
@@ -251,9 +259,19 @@ export async function layoutNote(markdown: string, opts: ExportOptions, host: HT
 	host.setCssStyles({ width: `${CONTENT_WIDTH}pt` });
 	for (const it of [...b.blocks, ...b.notes]) host.appendChild(it.el);
 	try {
-		await host.ownerDocument.fonts.ready;
+		// Load the fonts before measuring: a font still loading would wrap the lines differently.
+		const fonts = host.ownerDocument.fonts;
+		const family = cssFontFamily(opts.font);
+		await Promise.all([`${opts.fontSize}pt ${family}`, `italic ${opts.fontSize}pt ${family}`, `bold ${opts.fontSize}pt ${family}`].map((f) => fonts.load(f).catch(() => [])));
+		await fonts.ready;
 	} catch {
 		// fonts API unavailable: measure with what is loaded
+	}
+	// A pane that is hidden or still opening has no layout: every paragraph measures 0 high.
+	const measurable = [...b.blocks, ...b.notes].find((it) => !it.atomic && (it.el.textContent ?? '').trim() !== '');
+	if (measurable && measurable.el.getBoundingClientRect().height === 0) {
+		host.empty();
+		throw new NotLaidOutError();
 	}
 
 	const pblocks: PBlock[] = b.blocks.map((it, i) => {
