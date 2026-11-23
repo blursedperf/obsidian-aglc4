@@ -24,6 +24,7 @@ export type SourceKind =
 	| 'newspaper'
 	| 'internet'
 	| 'paper'
+	| 'submission'
 	| 'ibid'
 	| 'subsequent';
 
@@ -111,7 +112,7 @@ const JUDGES = `\\s\\((?=[^()\\n]*(?:\\b${JUDGE_TITLES}\\b|\\b${JUDGE_PREFIX}\\s
 /** Parenthetical notes after a pinpoint (r 1.5.7, 2.2.6, 2.4.4): "(emphasis added)", "(Court of Appeal)", "(during argument)". */
 const NOTES = '\\s\\((?:emphasis added|emphasis in original|citations omitted|footnotes omitted|citations and footnotes omitted|during argument|(?=[^()\\n]*\\b(?:Court|Council|Tribunal|Commission)\\b)[A-Z][^()\\n]*)\\)';
 /** A personal or organisational name: capitalised words, with the particles names and bodies use. */
-const NAME = '\\p{Lu}[\\p{L}\\p{N}.\'’&-]*(?:\\s(?:\\p{Lu}[\\p{L}\\p{N}.\'’&-]*|of|the|for|on|and|in|de|van|von|der|den|di|da|le|la|du|bin|binti|et al\\.?|&))*';
+const NAME = '\\p{Lu}[\\p{L}\\p{N}.\'’&-]*(?:\\s(?:\\p{Lu}[\\p{L}\\p{N}.\'’&-]*|of|the|for|on|and|in|into|to|with|from|at|by|under|de|van|von|der|den|di|da|le|la|du|bin|binti|et al\\.?|&))*';
 /** Authors (r 4.1): names separated by commas, a body's jurisdiction ("Department for Women (NSW)"), editors. */
 const AUTHOR_NAME = `${NAME}(?:\\s\\((?:Cth|NSW|Vic|Qld|WA|SA|Tas|ACT|NT)\\))?`;
 const AUTHORS = `${AUTHOR_NAME}(?:,\\s${AUTHOR_NAME})*(?:\\s\\((?:ed|eds)\\))?`;
@@ -1077,6 +1078,37 @@ const PAPER: SourceSpec = {
 	],
 };
 
+/** A submission to an inquiry (AGLC4 ch 7): the author, its number and recipient, the inquiry and date. */
+const SUBMISSION: SourceSpec = {
+	kind: 'submission',
+	label: 'Submission to an inquiry',
+	ref: 'ch 7',
+	claimAfter: 'submission',
+	example: 'Law Council of Australia, Submission No 12 to Senate Legal and Constitutional Affairs Legislation Committee, Parliament of Australia, *Inquiry into the Bill* (21 March 2018) 4',
+	start: '${Author}, Submission No ${1} to ${Committee}, Parliament of Australia, *${Inquiry Title}* (${1 January 2000})',
+	elements: [
+		{ ...author(), re: new RegExp(`${AUTHORS}(?=,\\sSubmission\\b)`, 'yu') },
+		{
+			id: 'submission',
+			label: 'Submission number and recipient',
+			hint: ', Submission No 12 to the committee or body (and its parliament, eg Parliament of Australia)',
+			insert: ', Submission No ${1} to ${Committee}, Parliament of Australia',
+			re: S(',\\sSubmission(?:\\sNo\\s[\\w./-]+)?\\sto\\s[^*;]+?(?=,\\s[*_])'),
+		},
+		{ ...italicTitle('title', 'Inquiry title', 'Title of the inquiry, in italics'), insert: ', *${Inquiry Title}*', re: S(`,\\s${ITALIC}`) },
+		{
+			id: 'date',
+			label: 'Date',
+			hint: '(Day Month Year) the submission was made',
+			insert: ' (${1 January 2000})',
+			re: S(`\\s\\((?:${DATE}|${MONTH}\\s\\d{4}|\\d{4})\\)`),
+		},
+		{ ...pinpoints, repeat: false, insert: ' ${pinpoint}', re: S(`\\s${PIN}`), hint: 'Page or paragraph after a space' },
+		urlElement(true),
+		shortTitle(),
+	],
+};
+
 const EXPLANATORY: SourceSpec = {
 	kind: 'explanatory',
 	label: 'Explanatory memorandum',
@@ -1224,6 +1256,7 @@ export const SPECS: SourceSpec[] = [
 	JOURNAL,
 	CHAPTER,
 	NEWSPAPER,
+	SUBMISSION,
 	INTERNET,
 	PAPER,
 	BOOK,

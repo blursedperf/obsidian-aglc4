@@ -3,8 +3,11 @@
  */
 import { type App, type Editor, type EditorPosition, EditorSuggest, type EditorSuggestContext, type EditorSuggestTriggerInfo, SuggestModal, type TFile } from 'obsidian';
 import { type Suggestion, suggestNext } from '../aglc/citation';
+import { MATERIALS, type Material } from '../aglc/materials';
 import type { Aglc4Settings } from '../settings';
+import type { EditorView } from '@codemirror/view';
 import { expandSnippet, footnoteAt } from './context';
+import { insertTemplate } from './snippet';
 
 /** The popup opens by itself at the end of an element: after closing punctuation or a number. */
 const TRIGGER_AFTER = /(?:[,*_)\]'’>]\s?|\d\s)$/;
@@ -21,10 +24,15 @@ export function footnoteTextBeforeCursor(editor: Editor): { before: string; curs
 	return { before: text.slice(ctx.contentFrom, offset), cursor };
 }
 
-/** Insert a suggestion at the cursor, selecting its first placeholder. */
+/** Insert a suggestion at the cursor, selecting its first placeholder; Tab moves to the next. */
 export function applySuggestion(editor: Editor, s: Suggestion, cursor: EditorPosition = editor.getCursor()): void {
 	const end = editor.posToOffset(cursor);
 	const start = end - s.replaceLength;
+	const cm = (editor as unknown as { cm?: EditorView }).cm;
+	if (cm) {
+		insertTemplate(cm, start, end, s.insert);
+		return;
+	}
 	const { text, selFrom, selTo } = expandSnippet(s.insert);
 	editor.replaceRange(text, editor.offsetToPos(start), cursor);
 	editor.setSelection(editor.offsetToPos(start + selFrom), editor.offsetToPos(start + selTo));
@@ -42,7 +50,7 @@ function renderSuggestion(s: Suggestion, el: HTMLElement): void {
 export class NextElementSuggest extends EditorSuggest<Suggestion> {
 	constructor(app: App, private settings: () => Aglc4Settings, private enabledFor: (file: TFile | null) => boolean = () => true) {
 		super(app);
-		this.limit = 20;
+		this.limit = 40;
 	}
 
 	onTrigger(cursor: EditorPosition, editor: Editor, file: TFile | null): EditorSuggestTriggerInfo | null {
@@ -94,5 +102,35 @@ export class NextElementModal extends SuggestModal<Suggestion> {
 
 	onChooseSuggestion(s: Suggestion): void {
 		applySuggestion(this.editor, s);
+	}
+}
+
+/** Picker of kinds of source, for "Cite a kind of source". */
+export class MaterialModal extends SuggestModal<Material> {
+	constructor(app: App, private onChoose: (m: Material) => void) {
+		super(app);
+		this.setPlaceholder('Kind of source to cite, eg report, Productivity Commission, case, Act');
+		this.limit = 60;
+	}
+
+	getSuggestions(query: string): Material[] {
+		const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+		return MATERIALS.filter((m) => {
+			const text = `${m.label} ${m.group} ${m.hint} ${m.example}`.toLowerCase();
+			return words.every((w) => text.includes(w));
+		});
+	}
+
+	renderSuggestion(m: Material, el: HTMLElement): void {
+		el.addClass('aglc-suggestion');
+		const top = el.createDiv({ cls: 'aglc-suggestion-top' });
+		top.createSpan({ cls: 'aglc-suggestion-label', text: m.label });
+		top.createSpan({ cls: 'aglc-suggestion-source', text: m.group });
+		el.createDiv({ cls: 'aglc-suggestion-hint', text: m.hint });
+		el.createDiv({ cls: 'aglc-suggestion-example', text: m.example });
+	}
+
+	onChooseSuggestion(m: Material): void {
+		this.onChoose(m);
 	}
 }

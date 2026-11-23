@@ -9,6 +9,7 @@ Run commands from the command palette (Ctrl/Cmd+P; type "AGLC4" to list them). G
 | **Insert footnote** | Adds a footnote at the cursor (after any punctuation) and takes you to it ([writing footnotes](writing-footnotes.md)) |
 | **Return from footnote to its reference** | Goes back from the footnote at the cursor to its number in the text |
 | **Jump between footnote and its reference** | Moves between a footnote and its number within one editor |
+| **Cite a kind of source** | Choose a kind of source (a case, an Act, a government or inquiry report, a journal article …) and insert its AGLC4 form, with Tab between its placeholders. Outside a footnote, adds a footnote first ([citing a kind of source](next-element.md#citing-a-kind-of-source)) |
 | **Suggest next citation element** | Lists what can come next in the citation at the cursor ([next element](next-element.md)) |
 | **Move footnotes to the bottom and renumber** | Puts every footnote at the bottom in reading order and relabels them 1, 2, 3 … |
 

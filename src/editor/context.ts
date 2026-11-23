@@ -1,3 +1,4 @@
+import { SIGNALS, escapeRe } from '../aglc/data';
 import { type FootnoteScan, scanFootnotes } from '../footnotes';
 
 export interface FootnoteContext {
@@ -94,4 +95,20 @@ export function atFinishedFootnote(text: string, offset: number, scan: FootnoteS
 	const before = text.slice(ctx.contentFrom, offset);
 	const after = text.slice(offset, ctx.contentTo);
 	return after.trim() === '' && /[.?!]$/.test(before.trimEnd()) && before.trim().length > 1;
+}
+
+/** The text ends with an introductory signal (AGLC4 r 1.2), which the new citation follows. */
+const ENDS_WITH_SIGNAL = new RegExp(`(?:^|[.;]\\s+)(?:${SIGNALS.map(escapeRe).join('|')})$`, 'i');
+
+/**
+ * What goes between the footnote text before the cursor and the citation of a new source: nothing at the
+ * start of the footnote, after "; " or after a signal; a new sentence after a finished citation; otherwise
+ * "; " (another source, AGLC4 r 1.1.3).
+ */
+export function citationJoin(before: string): { insert: string; replace: number } {
+	const t = before.replace(/\s+$/, '');
+	const spaces = before.length - t.length;
+	if (t === '') return { insert: '', replace: 0 };
+	if (/;$/.test(t) || ENDS_WITH_SIGNAL.test(t) || /[.?!]['’"”]?$/.test(t)) return { insert: ' ', replace: spaces };
+	return { insert: '; ', replace: spaces };
 }

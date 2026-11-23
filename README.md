@@ -7,7 +7,7 @@ If it saves you some footnote pain, **[buy me a coffee](https://buymeacoffee.com
 Write footnoted legal work in Obsidian to the *Australian Guide to Legal Citation* (4th ed). The plugin:
 
 - **underlines incorrect or incomplete citations** as you write, explains the AGLC4 rule on hover and offers a one-click fix;
-- **suggests the next required element** of the citation you are typing;
+- **inserts the AGLC4 form of any kind of source** you choose, from cases and Acts to government, law reform and Productivity Commission reports (interim, draft and final), with Tab between the parts to fill in, and **suggests the next required element** of the citation you are typing;
 - **keeps footnotes at the bottom of the note**, in reading order and renumbered, and keeps `(n X)` cross-references pointing at the right footnote;
 - **exports to Word with real footnotes** at the bottom of each page, with AGLC4 headings and a bibliography, and shows the pages in a **page preview** first;
 - **imports Word documents** with their footnotes;

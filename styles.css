@@ -497,3 +497,17 @@
 .aglc-status.aglc-status-off {
 	color: var(--text-faint);
 }
+
+/* Placeholders of an inserted citation, until filled in (Tab moves to the next) */
+.aglc-placeholder {
+	border-bottom: 1px dotted var(--text-faint);
+	background-color: var(--background-modifier-hover);
+	border-radius: 2px;
+}
+
+/* The example of a kind of source in "Cite a kind of source" */
+.aglc-suggestion-example {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	margin-top: 0.1em;
+}

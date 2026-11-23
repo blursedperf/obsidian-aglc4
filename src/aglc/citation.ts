@@ -2,6 +2,7 @@
  * Analysis of a single footnote: split into citations, identify each citation's kind, report grammar
  * issues and work out what element should come next.
  */
+import { MATERIALS } from './materials';
 import { SIGNALS, escapeRe } from './data';
 import { type ElementSpec, type MatchResult, type SourceKind, type SourceSpec, SPECS, matchSpec } from './grammar';
 import { type Issue, shiftIssue } from './types';
@@ -316,13 +317,13 @@ export interface Suggestion {
 const FINISH: Suggestion = { label: 'End footnote', hint: 'Close the footnote with a full stop (AGLC4 r 1.1.4)', source: '', insert: '.', required: false, replaceLength: 0 };
 const ANOTHER: Suggestion = { label: 'Another source', hint: 'Separate sources with a semicolon (AGLC4 r 1.1.3)', source: '', insert: '; ', required: false, replaceLength: 0 };
 
-/** Starting points offered on an empty citation. */
+/** Starting points offered on an empty citation: every kind of source, with its AGLC4 form. */
 export function startSuggestions(hasSignal: boolean): Suggestion[] {
-	return SPECS.filter((s) => s.kind !== 'legislation-short').map((s) => ({
-		label: s.label,
-		hint: s.example,
-		source: s.label,
-		insert: s.kind === 'ibid' && hasSignal ? 'ibid' : s.start,
+	return MATERIALS.map((m) => ({
+		label: m.label,
+		hint: m.example,
+		source: m.group,
+		insert: m.id === 'ibid' && hasSignal ? 'ibid' : m.template,
 		required: false,
 		replaceLength: 0,
 	}));

@@ -5,10 +5,11 @@ import { suggestNext } from './aglc/citation';
 import { withBibliography } from './aglc/bibliography';
 import type { Issue } from './aglc/types';
 import { footnoteKeys, remapCrossReferences, scanFootnotes, tidyFootnotes } from './footnotes';
-import { footnoteAt, minimalChange, referenceFor } from './editor/context';
+import { citationJoin, footnoteAt, minimalChange, referenceFor } from './editor/context';
 import { type AglcHost, buildExtension, refreshEffect } from './editor/extension';
 import { type GuideAction, changeGuide, guideExtension, guideShown } from './editor/guide';
-import { NextElementModal, NextElementSuggest, footnoteTextBeforeCursor } from './editor/suggest';
+import { MaterialModal, NextElementModal, NextElementSuggest, footnoteTextBeforeCursor } from './editor/suggest';
+import { insertTemplate, placeholderExtension } from './editor/snippet';
 import { type ExportOptions, exportDocx } from './export/docx';
 import { exportHtml } from './export/html';
 import { PAGE_PREVIEW_VIEW, PagePreviewView } from './layout/view';
@@ -168,7 +169,7 @@ export default class Aglc4Plugin extends Plugin {
 			vimMode: () => this.vimMode(),
 			promptSet: (path) => this.promptSetFor(path),
 		};
-		this.registerEditorExtension([buildExtension(host), guideExtension(host)]);
+		this.registerEditorExtension([buildExtension(host), guideExtension(host), placeholderExtension]);
 		this.registerEditorSuggest(new NextElementSuggest(this.app, () => this.settings, (file) => this.enabledFor(file)));
 		// A note's properties decide whether the plugin works in it, and its style.
 		this.registerEvent(this.app.metadataCache.on('changed', (file, data, cache) => {
@@ -237,7 +238,14 @@ export default class Aglc4Plugin extends Plugin {
 		this.addCommand({
 			id: 'insert-footnote',
 			name: 'Insert footnote',
-			editorCallback: (editor) => this.insertFootnote(editor),
+			editorCallback: (editor) => { void this.insertFootnote(editor); },
+		});
+		this.addCommand({
+			id: 'cite-kind-of-source',
+			name: 'Cite a kind of source',
+			editorCallback: (editor) => {
+				new MaterialModal(this.app, (m) => { void this.citeMaterial(editor, m.template); }).open();
+			},
 		});
 		this.addCommand({
 			id: 'suggest-next-element',
@@ -504,7 +512,29 @@ export default class Aglc4Plugin extends Plugin {
 		new IssueModal(this.app, editor, a.issues).open();
 	}
 
-	private insertFootnote(editor: Editor) {
+	/**
+	 * Add a citation from `template` (with placeholders) to the footnote at the cursor, or to a new
+	 * footnote when the cursor is not in one.
+	 */
+	private async citeMaterial(editor: Editor, template: string) {
+		let target: Editor | null = editor;
+		let ctx = footnoteAt(editor.getValue(), editor.posToOffset(editor.getCursor()));
+		if (!ctx) {
+			target = await this.insertFootnote(editor);
+			if (!target) return;
+			ctx = footnoteAt(target.getValue(), target.posToOffset(target.getCursor()));
+			if (!ctx) return;
+		}
+		const cm = cmOf(target);
+		if (!cm) return;
+		const at = target.posToOffset(target.getCursor());
+		const join = citationJoin(target.getValue().slice(ctx.contentFrom, at));
+		insertTemplate(cm, at - join.replace, at, join.insert + template);
+		target.focus();
+	}
+
+	/** Insert a footnote at the cursor and go to it; returns the editor it is written in. */
+	private async insertFootnote(editor: Editor): Promise<Editor | null> {
 		const text = editor.getValue();
 		let at = editor.posToOffset(editor.getCursor());
 		// AGLC4 r 1.1.2: the footnote number follows punctuation.
@@ -533,19 +563,19 @@ export default class Aglc4Plugin extends Plugin {
 
 		replaceText(editor, next);
 		const def = scanFootnotes(next).defs.find((d) => d.label === label);
-		if (!def) return;
+		if (!def) return null;
 
 		const main = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (this.settings.footnoteEditing === 'pane' && !Platform.isPhone && main?.file && main.editor === editor && main.leaf !== this.footnotePane) {
 			// Stay put in the text, just after the new footnote number, and write the footnote in the pane.
 			const ref = scanFootnotes(next).notes.find((n) => n.label === label)?.refs[0];
 			if (ref) editor.setCursor(editor.offsetToPos(ref.to));
-			void this.showInFootnotePane(main, def.contentFrom);
-			return;
+			return await this.showInFootnotePane(main, def.contentFrom);
 		}
 		const pos = editor.offsetToPos(def.contentFrom);
 		editor.setCursor(pos);
 		editor.scrollIntoView({ from: pos, to: pos }, true);
+		return editor;
 	}
 
 	// -----------------------------------------------------------------------------------------------------
@@ -560,9 +590,9 @@ export default class Aglc4Plugin extends Plugin {
 	}
 
 	/** Show the note in the footnote pane at `offset` and put the cursor there. */
-	private async showInFootnotePane(main: MarkdownView, offset: number) {
+	private async showInFootnotePane(main: MarkdownView, offset: number): Promise<Editor | null> {
 		const file = main.file;
-		if (!file) return;
+		if (!file) return null;
 		// The pane loads the note from disk: save the reference just inserted first.
 		await main.save();
 		let pane = this.footnotePane;
@@ -575,12 +605,13 @@ export default class Aglc4Plugin extends Plugin {
 		}
 		this.footnoteMain = main.leaf;
 		const view = pane.view;
-		if (!(view instanceof MarkdownView)) return;
+		if (!(view instanceof MarkdownView)) return null;
 		this.app.workspace.setActiveLeaf(pane, { focus: true });
 		const pos = view.editor.offsetToPos(offset);
 		view.editor.setCursor(pos);
 		view.editor.scrollIntoView({ from: pos, to: pos }, true);
 		view.editor.focus();
+		return view.editor;
 	}
 
 	/**

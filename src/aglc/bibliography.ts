@@ -44,7 +44,7 @@ function sectionOf(kind: SourceKind, text: string): SectionId | null {
 		case 'legislation-short':
 			// The Australian Constitution is cited in full without a year; other short titles point back.
 			return /^\*[^*]*\bConstitution\*(?:\s|$)/.test(text) ? 'C' : null;
-		case 'journal': case 'book': case 'chapter': case 'newspaper':
+		case 'journal': case 'book': case 'chapter': case 'newspaper': case 'submission':
 			return 'A';
 		case 'paper':
 			return PAPER_A.test(text) ? 'A' : 'E';
