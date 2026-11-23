@@ -10,7 +10,7 @@ Run **Cite a kind of source** (give it a hotkey) and choose what you are citing.
 Productivity Commission, *Title* (Inquiry Report No 1, 1 January 2000)
 ```
 
-Type over the placeholder, then press **Tab** for the next one (**Shift+Tab** goes back). After the last, Tab moves to the end of the citation, ready for a pinpoint or the closing full stop. The placeholders are marked until you fill them in. **Escape**, or moving the cursor elsewhere, stops. With the cursor outside a footnote, a footnote is inserted first. In a footnote that already cites a source, the new one is added after a semicolon, or as a new sentence after a finished citation.
+Type over the placeholder, then press **Tab** for the next one (**Shift+Tab** goes back). After the last, Tab moves to the end of the citation, ready for a pinpoint or the closing full stop. The placeholders are marked until you fill them in. **Escape**, or moving the cursor elsewhere, stops. With the cursor outside a footnote, a footnote is inserted first. To have the list open every time you insert a footnote, turn on **Choose a kind of source for new footnotes** ([settings](settings.md)). In a footnote that already cites a source, the new one is added after a semicolon, or as a new sentence after a finished citation.
 
 The kinds of source:
 

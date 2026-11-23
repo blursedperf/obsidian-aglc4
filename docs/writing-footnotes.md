@@ -24,6 +24,8 @@ Where you write the footnote depends on **Write new footnotes in** ([settings](s
 
 Give **Insert footnote** a hotkey in **Settings → Hotkeys**: it is the command you will use most.
 
+To choose what the footnote cites as you insert it, turn on **Choose a kind of source for new footnotes**. **Insert footnote** then opens the list of kinds of source (a case, an Act, a government or Productivity Commission report, a journal article …). Choose one, and its AGLC4 form is put in the new footnote, with Tab between its placeholders ([citing a kind of source](next-element.md#citing-a-kind-of-source)). Press Escape to leave the footnote empty and write it yourself. Without the setting, **Cite a kind of source** does the same at any time.
+
 ## Going back to the text
 
 When you have finished a footnote:

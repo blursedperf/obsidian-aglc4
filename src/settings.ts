@@ -27,6 +27,7 @@ export interface Aglc4Settings {
 	headingScheme: HeadingScheme;
 	aglcTopLevel: TopLevel;
 	footnoteEditing: 'pane' | 'note';
+	chooseKindOnInsert: boolean;
 	returnOnFinish: boolean;
 	closeFootnotePane: boolean;
 	keepFootnotesTogether: boolean;
@@ -64,6 +65,7 @@ export const DEFAULT_SETTINGS: Aglc4Settings = {
 	headingScheme: 'plain',
 	aglcTopLevel: 'auto',
 	footnoteEditing: 'pane',
+	chooseKindOnInsert: false,
 	returnOnFinish: true,
 	closeFootnotePane: true,
 	keepFootnotesTogether: true,
@@ -136,6 +138,7 @@ export const GROUPS: Group[] = [
 		heading: 'Footnotes',
 		items: [
 			{ name: 'Write new footnotes in', desc: 'Where "Insert footnote" puts you to write the footnote. A pane below the note shows the same note at its footnotes, so the text you are writing stays where it is. On phones footnotes are always written in the note.', control: { type: 'dropdown', key: 'footnoteEditing', options: { pane: 'A pane below the note', note: 'The note (jump to the bottom)' } } },
+			{ name: 'Choose a kind of source for new footnotes', desc: 'When "Insert footnote" adds a footnote, open the list of kinds of source (case, Act, government or inquiry report, journal article …) and insert the AGLC4 form of the one you choose, with Tab between its placeholders. Press Escape to leave the footnote empty.', control: { type: 'toggle', key: 'chooseKindOnInsert' } },
 			{ name: 'Return after a footnote', desc: 'Press Enter after a footnote\'s closing full stop, or Escape anywhere in a footnote, to go back to its reference in the text.', control: { type: 'toggle', key: 'returnOnFinish' } },
 			{ name: 'Close the footnote pane when done', desc: 'When you press Enter after a footnote\'s closing full stop in the footnote pane, close the pane as you return to the text. The next "Insert footnote" opens it again. Escape returns without closing it.', control: { type: 'toggle', key: 'closeFootnotePane' } },
 			{ name: 'Keep footnotes at the bottom', desc: 'When you leave a note, move every footnote definition to the bottom of the note in reading order. Text is otherwise untouched.', control: { type: 'toggle', key: 'tidyOnLeave' } },

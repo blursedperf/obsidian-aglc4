@@ -238,14 +238,16 @@ export default class Aglc4Plugin extends Plugin {
 		this.addCommand({
 			id: 'insert-footnote',
 			name: 'Insert footnote',
-			editorCallback: (editor) => { void this.insertFootnote(editor); },
+			editorCallback: (editor) => {
+				void this.insertFootnote(editor).then((target) => {
+					if (target && this.settings.chooseKindOnInsert) this.chooseKind(target);
+				});
+			},
 		});
 		this.addCommand({
 			id: 'cite-kind-of-source',
 			name: 'Cite a kind of source',
-			editorCallback: (editor) => {
-				new MaterialModal(this.app, (m) => { void this.citeMaterial(editor, m.template); }).open();
-			},
+			editorCallback: (editor) => this.chooseKind(editor),
 		});
 		this.addCommand({
 			id: 'suggest-next-element',
@@ -510,6 +512,11 @@ export default class Aglc4Plugin extends Plugin {
 			return;
 		}
 		new IssueModal(this.app, editor, a.issues).open();
+	}
+
+	/** Open the list of kinds of source, and cite the one chosen at the cursor in `editor`. */
+	private chooseKind(editor: Editor) {
+		new MaterialModal(this.app, (m) => { void this.citeMaterial(editor, m.template); }).open();
 	}
 
 	/**

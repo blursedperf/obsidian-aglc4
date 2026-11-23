@@ -31,6 +31,7 @@ Open **Settings → AGLC4 Citations**. Many style settings can also be set for o
 ## Footnotes
 
 - **Write new footnotes in**: a pane below the note (default on desktop), or the note itself ([writing footnotes](writing-footnotes.md)).
+- **Choose a kind of source for new footnotes**: when **Insert footnote** adds a footnote, open the list of kinds of source and insert the form of the one you choose ([citing a kind of source](next-element.md#citing-a-kind-of-source)). Off by default; Escape leaves the footnote empty.
 - **Return after a footnote**: Enter after the closing full stop, or Escape, returns to the reference.
 - **Close the footnote pane when done**: finishing with Enter in the pane also closes it.
 - **Keep footnotes at the bottom**: when you leave a note, move its footnotes to the bottom in reading order.
